@@ -1,0 +1,119 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Vault Runners</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<div id="app">
+
+  <!-- ===================== START SCREEN ===================== -->
+  <section id="screen-start" class="screen">
+    <h1 class="title">VAULT RUNNERS</h1>
+    <p class="subtitle">Draw. Combo. Loot. Survive three bosses.</p>
+    <button class="btn btn-primary" id="btn-new-run">Start Run</button>
+    <div class="rules">
+      <h3>How to play</h3>
+      <ul>
+        <li><b>Attack</b> cards deal damage. Playing several in the same turn stacks a combo multiplier — chain them for big hits.</li>
+        <li><b>Block</b> cards reduce the boss's next attack. Block resets at the start of your turn.</li>
+        <li><b>Loot</b> cards give gold on the spot — a few instead let you spend gold mid-fight for a big, risky payoff (a gold cost shows as a yellow badge on the card).</li>
+        <li><b>Skill</b> cards are utility — some draw extra cards, some give extra energy. The bigger ones ask you to discard a card first.</li>
+        <li>Watch the boss's <b>intent</b> to know what's coming and plan your block.</li>
+        <li>Beat a boss &rarr; visit the market &rarr; buy cards / trinkets / healing &rarr; next boss.</li>
+      </ul>
+    </div>
+  </section>
+
+  <!-- ===================== COMBAT SCREEN ===================== -->
+  <section id="screen-combat" class="screen">
+    <div class="topbar">
+      <div class="stat hp"><span class="label">HP</span><div class="bar"><div class="bar-fill" id="player-hp-fill"></div></div><span id="player-hp-text"></span></div>
+      <div class="stat block"><span class="label">Block</span><span id="player-block-text">0</span></div>
+      <div class="stat energy"><span class="label">Energy</span><span id="player-energy-text"></span></div>
+      <div class="stat gold"><span class="label">Gold</span><span id="player-gold-text">0</span></div>
+      <div class="stat deckcount"><span class="label">Deck</span><span id="deck-count-text"></span></div>
+    </div>
+
+    <div class="boss-area">
+      <div class="boss-name" id="boss-name">Boss</div>
+      <div class="bar boss-bar"><div class="bar-fill boss-fill" id="boss-hp-fill"></div></div>
+      <div id="boss-hp-text"></div>
+      <div class="intent" id="boss-intent"></div>
+      <div id="combo-popup" class="combo-popup hidden"></div>
+    </div>
+
+    <div class="battlefield">
+      <div class="pile-info">
+        <div>Draw: <span id="draw-count">0</span></div>
+        <div>Discard: <span id="discard-count">0</span></div>
+      </div>
+      <div id="discard-prompt" class="intent hidden"></div>
+      <div class="hand" id="hand"></div>
+      <button class="btn btn-primary" id="btn-end-turn">End Turn</button>
+    </div>
+
+    <div id="combat-log" class="combat-log"></div>
+  </section>
+
+  <!-- ===================== MARKET SCREEN ===================== -->
+  <section id="screen-market" class="screen">
+    <h2>The Market</h2>
+    <div class="topbar">
+      <div class="stat hp"><span class="label">HP</span><span id="market-hp-text"></span></div>
+      <div class="stat gold"><span class="label">Gold</span><span id="market-gold-text">0</span></div>
+    </div>
+
+    <div class="market-section">
+      <h3>Cards for sale</h3>
+      <div class="market-cards" id="market-cards"></div>
+    </div>
+
+    <div class="market-section">
+      <h3>Trinkets</h3>
+      <div class="market-cards" id="market-trinkets"></div>
+    </div>
+
+    <div class="market-section services">
+      <h3>Services</h3>
+      <button class="btn" id="btn-heal">Rest &amp; Heal (15 HP) — <span id="heal-cost"></span>g</button>
+      <button class="btn" id="btn-remove">Remove a card from your deck — <span id="remove-cost"></span>g</button>
+    </div>
+
+    <button class="btn btn-primary" id="btn-continue">Continue to next boss &rarr;</button>
+  </section>
+
+  <!-- ===================== CARD REMOVAL SCREEN ===================== -->
+  <section id="screen-remove" class="screen">
+    <h2>Choose a card to remove</h2>
+    <div class="market-cards" id="remove-deck-list"></div>
+    <button class="btn" id="btn-cancel-remove">Cancel</button>
+  </section>
+
+  <!-- ===================== END SCREENS ===================== -->
+  <section id="screen-gameover" class="screen">
+    <h1 class="title">YOU DIED</h1>
+    <p class="subtitle" id="gameover-text"></p>
+    <button class="btn btn-primary" id="btn-restart-lose">Try Again</button>
+  </section>
+
+  <section id="screen-win" class="screen">
+    <h1 class="title">RUN COMPLETE</h1>
+    <p class="subtitle">You looted the vault and lived to tell about it.</p>
+    <button class="btn btn-primary" id="btn-restart-win">Play Again</button>
+  </section>
+
+  <!-- ===================== DICE / COIN OVERLAY ===================== -->
+  <div id="dice-overlay" class="dice-overlay hidden">
+    <div class="dice-box">
+      <div id="dice-face" class="dice-face"></div>
+      <div id="dice-result-text" class="dice-result-text"></div>
+    </div>
+  </div>
+
+</div>
+<script src="game.js"></script>
+</body>
+</html>
