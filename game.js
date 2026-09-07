@@ -19,89 +19,141 @@ function makeCard(def) {
 }
 
 const CARD_LIBRARY = {
-  strike: { key: 'strike', name: 'Strike', type: 'attack', cost: 1, baseDamage: 6, desc: 'Deal 6 damage.', rarity: 'starter' },
-  guard: { key: 'guard', name: 'Guard', type: 'block', cost: 1, block: 5, desc: 'Gain 5 block.', rarity: 'starter' },
-  treasureGrab: { key: 'treasureGrab', name: 'Treasure Grab', type: 'loot', cost: 1, gold: 4, desc: 'Gain 4 gold.', rarity: 'starter' },
+  strike: { key: 'strike', name: 'Strike', type: 'attack', cost: 1, baseDamage: 6, desc: 'Deal 6 damage.' },
+  guard: { key: 'guard', name: 'Guard', type: 'block', cost: 1, block: 5, desc: 'Gain 5 block.' },
+  treasureGrab: { key: 'treasureGrab', name: 'Treasure Grab', type: 'loot', cost: 1, gold: 4, desc: 'Gain 4 gold.' },
 
-  heavyStrike: { key: 'heavyStrike', name: 'Heavy Strike', type: 'attack', cost: 2, baseDamage: 12, desc: 'Deal 12 damage.', rarity: 'common', price: 20 },
-  quickStab: { key: 'quickStab', name: 'Quick Stab', type: 'attack', cost: 1, baseDamage: 4, drawOnPlay: 1, desc: 'Deal 4 damage. Draw 1 card.', rarity: 'common', price: 25 },
-  shieldWall: { key: 'shieldWall', name: 'Shield Wall', type: 'block', cost: 2, block: 10, desc: 'Gain 10 block.', rarity: 'common', price: 20 },
-  parry: { key: 'parry', name: 'Parry', type: 'block', cost: 1, block: 4, baseDamage: 3, isAttackToo: true, desc: 'Gain 4 block. Deal 3 damage.', rarity: 'common', price: 28 },
-  sidestep: { key: 'sidestep', name: 'Sidestep', type: 'skill', cost: 0, block: 2, drawOnPlay: 2, desc: '0 cost. Gain 2 block, draw 2 cards.', rarity: 'uncommon', price: 45 },
-  vault: { key: 'vault', name: 'Vault', type: 'block', cost: 1, block: 3, gold: 2, desc: 'Gain 3 block and 2 gold.', rarity: 'common', price: 22 },
-  comboStrike: { key: 'comboStrike', name: 'Combo Strike', type: 'attack', cost: 1, baseDamage: 4, comboBonus: 3, desc: 'Deal 4 damage, +3 per attack already played this turn.', rarity: 'uncommon', price: 40 },
-  twinBlades: { key: 'twinBlades', name: 'Twin Blades', type: 'attack', cost: 2, baseDamage: 5, hits: 2, desc: 'Deal 5 damage, twice.', rarity: 'uncommon', price: 42 },
-  bigSwing: { key: 'bigSwing', name: 'Big Swing', type: 'attack', cost: 3, baseDamage: 20, desc: 'Deal 20 damage.', rarity: 'rare', price: 55 },
-  gather: { key: 'gather', name: 'Gather', type: 'skill', cost: 0, drawOnPlay:3, desc: 'Draw 3 cards.', rarity: 'uncommon', price: 25},
-  overdraw: { key: 'overdraw', name: 'Overdraw', type: 'skill', cost: 0, discardCost: 2, drawOnPlay: 4, desc: 'Discard 2 cards. Draw 4 cards.', rarity: 'uncommon', price: 40 },
-  spark: { key: 'spark', name: 'Spark', type: 'skill', cost: 0, energyGain: 1, desc: 'Gain 1 energy.', rarity: 'common', price: 30 },
-  overcharge: { key: 'overcharge', name: 'Overcharge', type: 'skill', cost: 0, discardCost: 1, energyGain: 3, desc: 'Discard 1 card. Gain 3 energy.', rarity: 'uncommon', price: 45 },
+  quickStab: { key: 'quickStab', name: 'Quick Stab', type: 'attack', cost: 1, baseDamage: 4, drawOnPlay: 1, desc: 'Deal 4 damage. Draw 1 card.', price: 25 },
+  shieldWall: { key: 'shieldWall', name: 'Shield Wall', type: 'block', cost: 2, block: 14, desc: 'Gain 14 block.', price: 30 },
+  sidestep: { key: 'sidestep', name: 'Sidestep', type: 'skill', cost: 0, block: 2, drawOnPlay: 2, desc: '0 cost. Gain 2 block, draw 2 cards.', price: 45 },
+  comboStrike: { key: 'comboStrike', name: 'Combo Strike', type: 'attack', cost: 1, baseDamage: 4, comboBonus: 3, desc: 'Deal 4 damage, +3 per attack already played this turn.', price: 40 },
+  twinBlades: { key: 'twinBlades', name: 'Twin Blades', type: 'attack', cost: 2, baseDamage: 8, hits: 2, desc: 'Deal 8 damage, twice.', price: 45 },
+  heavyStrike: { key: 'heavyStrike', name: 'Heavy Strike', type: 'attack', cost: 3, baseDamage: 30, desc: 'Deal 30 damage.', price: 70 },
+  gather: { key: 'gather', name: 'Gather', type: 'skill', cost: 0, drawOnPlay:3, desc: 'Draw 3 cards.', price: 25},
+  overdraw: { key: 'overdraw', name: 'Overdraw', type: 'skill', cost: 0, discardCost: 2, drawOnPlay: 4, desc: 'Requires 2 other cards in hand. Discard 2 cards, draw 4 cards.', price: 40 },
+  spark: { key: 'spark', name: 'Spark', type: 'skill', cost: 0, energyGain: 1, desc: 'Gain 1 energy.', price: 30 },
+  overcharge: { key: 'overcharge', name: 'Overcharge', type: 'skill', cost: 0, discardCost: 1, energyGain: 1, desc: 'Requires 1 other card in hand. Discard 1 card, gain 1 energy.', price: 45 },
 
   // ---- Combo Flurry (Red + Purple/skill) ----
-  thousandCuts: { key: 'thousandCuts', name: 'Thousand Cuts', type: 'attack', cost: 2, baseDamage: 2, hits: 5, desc: 'Deal 2 damage, 5 times.', rarity: 'uncommon', price: 45 },
-  adrenaline: {
-    key: 'adrenaline', name: 'Adrenaline', type: 'skill', cost: 1, energyGain: 2, drawOnPlay: 3,
-    desc: 'Gain 2 energy, draw 3 cards. If your attack combo is above x2.0, draw 1 more.',
-    rarity: 'rare', price: 55,
-    onPlay(card) {
-      if (currentAttackMult() > 2.0) {
-        drawCards(1);
-        logMsg('Adrenaline: combo above x2.0, drew an extra card!');
-      }
-    },
+  thousandCuts: { key: 'thousandCuts', name: 'Thousand Cuts', type: 'attack', cost: 2, baseDamage: 2, hits: 5, desc: 'Deal 2 damage, 5 times.', price: 45 },
+  armor: { key: 'armor', name: 'Armor', type: 'block', cost: 3, block: 24, desc: 'Gain 24 block.', price: 40 },
+
+  // ---- Overheat Engine (Purple/skill) ----
+  burnout: { key: 'burnout', name: 'Burnout', type: 'skill', cost: 0, energyGain: 3, drawOnPlay: 3, exhaustOnPlay: true, desc: 'Gain 3 energy, draw 3 cards. Exhaust (removed for the rest of this combat).', price: 50 },
+
+  // ---- The Phalanx (block / retaliation) ----
+  // Block mirrors attack: turnBlockCount ticks once per hit, so `hits` buys triggers here
+  // the same way it does on the attack side, and blockComboBonus is the block twin of
+  // comboBonus. Remember block does not carry over -- c.block is wiped every endTurn --
+  // so everything here is single-turn value.
+  brace: { key: 'brace', name: 'Brace', type: 'block', cost: 0, block: 2, desc: '0 cost. Gain 2 block.', price: 25 },
+  bulwark: { key: 'bulwark', name: 'Bulwark', type: 'block', cost: 2, block: 3, hits: 4, desc: 'Gain 3 block, four times.', price: 50 },
+  stonewall: { key: 'stonewall', name: 'Stonewall', type: 'block', cost: 1, block: 4, blockComboBonus: 4, desc: 'Gain 4 block, +4 per block card already played this turn.', price: 40 },
+  shieldBash: {
+    key: 'shieldBash', name: 'Shield Bash', type: 'block', cost: 2, block: 8,
+    isAttackToo: true, damageFromBlockPercent: 1.0,
+    desc: 'Gain 8 block, then deal damage equal to your block. Your block is not spent.',
+    price: 55,
   },
-
-  // ---- Heavyweight Sacrifice (Red + Blue) ----
-  recklessSwing: { key: 'recklessSwing', name: 'Reckless Swing', type: 'attack', cost: 2, baseDamage: 50, selfDamage: 15, discardRandom: 2, desc: 'Deal 50 damage. Take 15 damage and discard 2 random cards.', rarity: 'rare', price: 65 },
-  bloodMagic: { key: 'bloodMagic', name: 'Blood Magic', type: 'skill', cost: 0, selfDamage: 5, energyGain: 2, retainBlock: true, desc: 'Lose 5 HP. Gain 2 energy. Retain your block into next turn.', rarity: 'uncommon', price: 40 },
-
-  // ---- Retaliation Phalanx (Blue + Red) ----
-  shieldBash: { key: 'shieldBash', name: 'Shield Bash', type: 'block', cost: 1, damageFromBlockPercent: 1.5, desc: 'Deal damage equal to 150% of your current block. Removes all block.', rarity: 'rare', price: 60 },
-  spikedArmor: {
-    key: 'spikedArmor', name: 'Spiked Armor', type: 'block', cost: 2, block: 15,
-    desc: 'Gain 15 block. Whenever you are attacked this turn, deal 5 damage back.',
-    rarity: 'rare', price: 55,
+  brambleGuard: {
+    key: 'brambleGuard', name: 'Bramble Guard', type: 'block', cost: 2, block: 10, retaliateDamage: 5,
+    desc: 'Gain 10 block. Whenever you are attacked, deal 5 damage back for the rest of this combat.',
+    price: 50,
     onPlay(card) {
-      addStatus('playerAttacked', 'turn', () => {
+      // Combat-scoped, unlike the old turn-scoped Spiked Armor: it survives
+      // clearTurnStatuses() and keeps retaliating every turn until startCombat() replaces
+      // the combat object. Each copy registers its own listener, so copies stack. The
+      // damage goes straight to boss.hp -- it resolves on the BOSS's turn, so it must not
+      // touch turnAttackCount or the player's combo.
+      addStatus('playerAttacked', 'combat', () => {
         const c = game.combat;
-        c.boss.hp = Math.max(0, c.boss.hp - 5);
-        logMsg('Spiked Armor retaliates for 5 damage!');
+        c.boss.hp = Math.max(0, c.boss.hp - card.retaliateDamage);
+        logMsg(`Bramble Guard retaliates for ${card.retaliateDamage} damage!`);
       });
     },
   },
 
-  // ---- Overheat Engine (Purple/skill) ----
-  burnout: { key: 'burnout', name: 'Burnout', type: 'skill', cost: 0, energyGain: 3, drawOnPlay: 3, exhaustOnPlay: true, desc: 'Gain 3 energy, draw 3 cards. Exhaust (removed for the rest of this combat).', rarity: 'rare', price: 50 },
+  // ---- The Gold Rush (loot / economy) ----
+  // Pure economy: none of these deal damage or grant block, so each one trades tempo in
+  // the current fight for buying power at the next market. Every gain routes through
+  // gainGold() so the Gold Loot trinket applies -- note that gainGold rounds, so small
+  // per-tick amounts (Skim at 1-2, Protection Racket at 3) can round the bonus away.
+  shakedown: { key: 'shakedown', name: 'Shakedown', type: 'loot', cost: 1, gold: 5, desc: 'Gain 5 gold.', price: 30 },
+  skim: {
+    key: 'skim', name: 'Skim', type: 'loot', cost: 0, goldPerAttack: 1,
+    desc: 'Gain 1 gold per attack already played this turn.',
+    price: 35,
+    onPlay(card) {
+      const n = game.combat.turnAttackCount;
+      if (n <= 0) {
+        logMsg('Skim: no attacks played this turn -- nothing to skim.');
+        return;
+      }
+      const g = gainGold(n * card.goldPerAttack);
+      logMsg(`Skim: ${n} attack(s) this turn, gained ${g} gold.`);
+    },
+  },
+  crackTheVault: { key: 'crackTheVault', name: 'Crack the Vault', type: 'loot', cost: 3, gold: 15, desc: 'Gain 15 gold.', price: 45 },
+  protectionRacket: {
+    key: 'protectionRacket', name: 'Protection Racket', type: 'loot', cost: 1, goldPerTurn: 3,
+    desc: 'Gain 3 gold at the start of each turn for the rest of this combat.',
+    price: 50,
+    onPlay(card) {
+      // Combat-scoped, so it survives clearTurnStatuses() and keeps paying every turn until
+      // startCombat() replaces the whole combat object at the next fight. Each copy played
+      // registers its own listener, so copies stack -- exactly how Sore Loser behaved.
+      addStatus('turnStart', 'combat', () => {
+        const g = gainGold(card.goldPerTurn);
+        logMsg(`Protection Racket: collected ${g} gold.`);
+      });
+      logMsg('Protection Racket: the arrangement starts paying next turn.');
+    },
+  },
+  bloodMoney: { key: 'bloodMoney', name: 'Blood Money', type: 'loot', cost: 0, selfDamage: 5, gold: 8, desc: 'Lose 5 HP. Gain 8 gold. Unplayable if it would kill you.', price: 35 },
 
   // ---- The High Roller (Gold, with cross-color support) ----
+  // Both gamble cards are free to acquire (price: 0) and free in energy (cost: 0), and
+  // charge gold per play (goldCost) instead. All the tunable numbers live on the card
+  // defs: goldCost is the per-play price, damagePerPip / winDamage are the payouts.
+  // Change them here; the desc strings directly below each one restate the same numbers
+  // and must be kept in sync by hand.
+  //
+  // Both COUNT FOR COMBO: the roll/flip decides the base damage and resolveAttackHit
+  // scales it, so they increment turnAttackCount and take the multiplier exactly like any
+  // other attack. A failed gamble does not -- see the tails branch below.
+  //
+  // They carry `deferredAttack` because they resolve their damage inside onPlay once the
+  // animation settles. It is redundant while their type is 'loot' (playCard's automatic
+  // attack branch only fires for 'attack' / isAttackToo), but it stops them double-dipping
+  // if that type is ever changed.
   rollTheBones: {
-    key: 'rollTheBones', name: 'Roll the Bones', type: 'loot', cost: 0, goldCost: 10,
-    desc: 'Pay 10 gold. Roll a die. Deal (roll x 5) damage.',
-    rarity: 'uncommon', price: 35,
+    key: 'rollTheBones', name: 'Roll the Bones', type: 'loot', cost: 0, deferredAttack: true,
+    goldCost: 5, damagePerPip: 2,
+    desc: 'Pay 5 gold. Roll a die. Deal (roll x 2) damage. Counts for combo.',
+    price: 0,
     onPlay(card) {
       rollDie(6, (roll) => {
-        const c = game.combat;
-        const dmg = roll * 5;
-        c.boss.hp = Math.max(0, c.boss.hp - dmg);
-        c.turnDamageDealt += dmg;
-        logMsg(`Roll the Bones: rolled a ${roll}, dealt ${dmg} damage.`);
+        const { damage } = resolveAttackHit(roll * card.damagePerPip);
+        logMsg(`Roll the Bones: rolled a ${roll}, dealt ${damage} damage.`);
         renderCombat();
         checkCombatEnd();
       });
     },
   },
   doubleOrNothing: {
-    key: 'doubleOrNothing', name: 'Double or Nothing', type: 'loot', cost: 0, goldCost: 15,
-    desc: 'Pay 15 gold. 50% chance: deal 40 damage. 50% chance: nothing.',
-    rarity: 'uncommon', price: 40,
+    key: 'doubleOrNothing', name: 'Double or Nothing', type: 'loot', cost: 0, deferredAttack: true,
+    goldCost: 5, winDamage: 15,
+    desc: 'Pay 5 gold. 50% chance: deal 15 damage, counting for combo. 50% chance: nothing.',
+    price: 0,
     onPlay(card) {
       flipCoin((heads) => {
-        const c = game.combat;
         if (heads) {
-          c.boss.hp = Math.max(0, c.boss.hp - 40);
-          c.turnDamageDealt += 40;
-          logMsg('Double or Nothing: heads! Dealt 40 damage.');
+          const { damage } = resolveAttackHit(card.winDamage);
+          logMsg(`Double or Nothing: heads! Dealt ${damage} damage.`);
         } else {
+          // Tails matches Glass Cannon's miss: resolveAttackHit is never called, so no
+          // damage, no turnDamageDealt, and no turnAttackCount increment -- a whiff must
+          // not inflate the combo for cards played after it.
           logMsg('Double or Nothing: tails. Nothing happens.');
         }
         resolveGoldCardOutcome(card, heads);
@@ -111,55 +163,31 @@ const CARD_LIBRARY = {
     },
   },
   glassCannon: {
-    key: 'glassCannon', name: 'Glass Cannon', type: 'attack', cost: 0, baseDamage: 30,
-    desc: 'Deal 30 damage for 0 energy. Roll a die -- on a 1 or 2, this card is destroyed permanently.',
-    rarity: 'rare', price: 50,
+    key: 'glassCannon', name: 'Glass Cannon', type: 'attack', cost: 0, baseDamage: 30, deferredAttack: true,
+    desc: '0 cost. Roll a die -- on a 4, 5 or 6 deal 30 damage. On a 1, 2 or 3 it deals nothing and is trashed permanently.',
+    price: 50,
     onPlay(card) {
       rollDie(6, (roll) => {
-        if (roll <= 2) {
-          permanentlyRemoveFromDeck(card);
+        if (roll >= 4) {
+          const { damage } = resolveAttackHit(card.baseDamage);
+          logMsg(`Glass Cannon: rolled ${roll}, hit for ${damage} damage.`);
         } else {
-          logMsg(`Glass Cannon: rolled ${roll}, card survives.`);
+          logMsg(`Glass Cannon: rolled ${roll}, misses completely.`);
+          trashCard(card);
         }
         renderCombat();
         checkCombatEnd();
       });
     },
   },
-  hitJob: {
-    key: 'hitJob', name: 'Hit Job', type: 'loot', cost: 0, goldCost: 25,
-    desc: 'Pay 25 gold. If the boss takes exactly 50 damage this turn, gain 100 gold.',
-    rarity: 'rare', price: 55,
-    onPlay(card) {
-      game.combat.pendingBets.push({ card, checkAmount: 50, reward: 100 });
-      logMsg('Hit Job: the bet is on -- exactly 50 damage this turn pays out 100 gold.');
-    },
-  },
   // Named "Loaded Dice" like the trinket, but a different thing (a played card, not a
   // passive) -- distinct key so the two don't collide, flagged to the user as a naming
   // overlap worth knowing about.
   loadedDiceCard: {
-    key: 'loadedDiceCard', name: 'Loaded Dice', type: 'skill', cost: 1, energyGain: 1,
-    desc: 'Gain 1 energy. Your next die roll or coin flip this turn is guaranteed to hit its best outcome.',
-    rarity: 'uncommon', price: 40,
+    key: 'loadedDiceCard', name: 'Loaded Dice', type: 'skill', cost: 0,
+    desc: '0 cost. Your next die roll or coin flip this turn is guaranteed to hit its best outcome.',
+    price: 40,
     onPlay(card) { game.combat.forcedNextRoll = 'max'; },
-  },
-  insurancePolicy: {
-    key: 'insurancePolicy', name: 'Insurance Policy', type: 'block', cost: 1, block: 10,
-    desc: 'Gain 10 block. If your next Gold card fails or misses its gamble, refund its gold cost.',
-    rarity: 'uncommon', price: 40,
-    onPlay(card) { game.combat.insuranceActive = true; },
-  },
-  soreLoser: {
-    key: 'soreLoser', name: 'Sore Loser', type: 'skill', cost: 1,
-    desc: 'Passive: whenever a card misses or is destroyed, permanently gain +3 damage on your attacks this combat.',
-    rarity: 'rare', price: 60,
-    onPlay(card) {
-      addStatus('cardMissed', 'combat', () => {
-        game.combat.soreLoserBonus = (game.combat.soreLoserBonus || 0) + 3;
-        logMsg('Sore Loser: +3 damage to attacks for the rest of this combat!');
-      });
-    },
   },
 };
 
@@ -177,9 +205,11 @@ const TRINKET_LIBRARY = {
 
 const STARTER_DECK_KEYS = ['strike', 'strike', 'strike', 'strike', 'strike', 'guard', 'guard', 'guard', 'guard', 'treasureGrab'];
 const SHOP_POOL_KEYS = [
-  'heavyStrike', 'quickStab', 'shieldWall', 'parry', 'sidestep', 'vault', 'comboStrike', 'twinBlades', 'bigSwing', 'gather', 'overdraw', 'spark', 'overcharge',
-  'thousandCuts', 'adrenaline', 'recklessSwing', 'bloodMagic', 'shieldBash', 'spikedArmor', 'burnout',
-  'rollTheBones', 'doubleOrNothing', 'glassCannon', 'hitJob', 'loadedDiceCard', 'insurancePolicy', 'soreLoser',
+  'quickStab', 'shieldWall', 'sidestep', 'comboStrike', 'twinBlades', 'heavyStrike', 'gather', 'overdraw', 'spark', 'overcharge',
+  'thousandCuts', 'armor', 'burnout',
+  'brace', 'bulwark', 'stonewall', 'shieldBash', 'brambleGuard',
+  'shakedown', 'skim', 'crackTheVault', 'protectionRacket', 'bloodMoney',
+  'rollTheBones', 'doubleOrNothing', 'glassCannon', 'loadedDiceCard',
 ];
 
 // HP roughly doubled from the original 42/68/95 -- High Roller cards can swing 30-50
@@ -240,7 +270,12 @@ function gainGold(amount) {
   return actual;
 }
 
+// The Math.max(1, ...) floor stops a discount from ever making a paid item free, but a
+// deliberately free item (price: 0) has to survive it -- so 0 short-circuits out first.
+// Written as `<= 0` rather than a falsy check so an undefined price still behaves exactly
+// as it did before (starter cards carry no price and never reach the market).
 function discountedPrice(basePrice) {
+  if (basePrice <= 0) return 0;
   return Math.max(1, Math.round(basePrice * (1 - game.shopDiscount)));
 }
 
@@ -262,12 +297,8 @@ function startCombat() {
     turnDamageDealt: 0,
     discardSelection: null,
     exhaustPile: [],
-    statuses: [],       // { on: 'playerAttacked' | 'cardMissed', scope: 'turn' | 'combat', effect() }
-    pendingBets: [],    // { card, checkAmount, reward } -- resolved at end of turn, see resolvePendingBets()
-    retainBlockNextReset: false,
+    statuses: [],       // { on: 'turnStart' | 'playerAttacked' | 'cardMissed', scope: 'turn' | 'combat', effect() }
     forcedNextRoll: null, // 'max' consumed by the next rollDie/flipCoin call
-    insuranceActive: false,
-    soreLoserBonus: 0,
     log: [],
   };
   drawCards(currentHandSize());
@@ -304,7 +335,7 @@ function currentAttackMult() {
   return n <= 0 ? 1 : 1 + COMBO_STEP * (n - 1);
 }
 
-// ---------- Status effects (Spiked Armor's retaliate, Sore Loser's passive, etc.) ----------
+// ---------- Status effects (Protection Racket's per-turn payout, etc.) ----------
 // A tiny pub/sub: cards register a status with an event name and a scope, and fireEvent
 // calls every status listening for that event. 'turn' statuses are cleared at end of turn;
 // 'combat' statuses live until the combat object is replaced (i.e. the whole fight ends).
@@ -333,42 +364,57 @@ function discardRandomCards(n) {
   }
 }
 
-// Permanently removes a card from the run's deck (not just this combat) -- for Glass
-// Cannon's unlucky roll. Also counts as a "miss" for Sore Loser-style passives.
-function permanentlyRemoveFromDeck(card) {
-  const idx = game.deck.findIndex(c => c.uid === card.uid);
-  if (idx !== -1) game.deck.splice(idx, 1);
-  logMsg(`${card.name} is destroyed and permanently removed from your deck!`);
+// Trashes a card out of the run for good -- for Glass Cannon's missed roll. Removing it
+// from game.deck alone is not enough: the card was already pushed into a combat zone by
+// playCard, so it has to come out of every zone too, or it gets reshuffled and replayed
+// for the rest of the fight. Also counts as a "miss" for Sore Loser-style passives.
+function trashCard(card) {
+  game.deck = game.deck.filter(x => x.uid !== card.uid);
+  const c = game.combat;
+  if (c) {
+    c.drawPile = c.drawPile.filter(x => x.uid !== card.uid);
+    c.hand = c.hand.filter(x => x.uid !== card.uid);
+    c.discardPile = c.discardPile.filter(x => x.uid !== card.uid);
+    c.exhaustPile = c.exhaustPile.filter(x => x.uid !== card.uid);
+  }
+  logMsg(`${card.name} is trashed -- removed from your deck for good!`);
   fireEvent('cardMissed', { card });
 }
 
-// Shared "did a gold-cost gamble pay off" handling: refunds via Insurance Policy on a
-// miss, and always notifies Sore Loser-style passives on a miss.
-function resolveGoldCardOutcome(card, succeeded) {
+// One attack hit: bumps the per-turn attack combo, applies the multiplier, and lands the
+// damage. Shared by the normal attack branch in playCard and by cards whose damage
+// resolves later (Glass Cannon's roll), so a deferred hit scores exactly like an
+// immediate one instead of duplicating the combo formula.
+function resolveAttackHit(baseDamage, comboBonus = 0) {
   const c = game.combat;
-  if (card.goldCost) {
-    if (!succeeded && c.insuranceActive) {
-      game.gold += card.goldCost;
-      logMsg(`Insurance Policy refunds ${card.goldCost} gold from ${card.name}.`);
-    }
-    c.insuranceActive = false; // consumed by the next gold card's outcome either way
-  }
-  if (!succeeded) fireEvent('cardMissed', { card });
+  c.turnAttackCount++;
+  const mult = 1 + COMBO_STEP * (c.turnAttackCount - 1);
+  const base = baseDamage + comboBonus * (c.turnAttackCount - 1);
+  const damage = Math.round(base * mult);
+  c.boss.hp = Math.max(0, c.boss.hp - damage);
+  c.turnDamageDealt += damage;
+  return { damage, mult };
 }
 
-function resolvePendingBets() {
+// One block gain: bumps the per-turn block combo, applies the multiplier, and banks the
+// block. Deliberately the mirror image of resolveAttackHit -- same counter-then-multiply
+// order, same rounding, same optional per-trigger bonus -- so both halves of the combo
+// system score identically and multi-hit block cards (Bulwark) tick once per hit exactly
+// like multi-hit attacks do.
+function resolveBlockGain(blockAmount, blockComboBonus = 0) {
   const c = game.combat;
-  for (const bet of c.pendingBets) {
-    const succeeded = c.turnDamageDealt === bet.checkAmount;
-    if (succeeded) {
-      const reward = gainGold(bet.reward);
-      logMsg(`${bet.card.name} pays off! +${reward} gold.`);
-    } else {
-      logMsg(`${bet.card.name} doesn't pay off (dealt ${c.turnDamageDealt}, needed exactly ${bet.checkAmount}).`);
-    }
-    resolveGoldCardOutcome(bet.card, succeeded);
-  }
-  c.pendingBets = [];
+  c.turnBlockCount++;
+  const mult = 1 + COMBO_STEP * (c.turnBlockCount - 1);
+  const base = blockAmount + blockComboBonus * (c.turnBlockCount - 1);
+  const block = Math.round(base * mult);
+  c.block += block;
+  return { block, mult };
+}
+
+// Shared "did a gold-cost gamble pay off" handling: notifies Sore Loser-style passives
+// on a miss. Kept as its own seam so every gold-card outcome reports through one place.
+function resolveGoldCardOutcome(card, succeeded) {
+  if (!succeeded) fireEvent('cardMissed', { card });
 }
 
 // ---------- Dice & coin animations ----------
@@ -386,9 +432,13 @@ const DICE_PIP_PATTERNS = {
   6: [0, 2, 3, 5, 6, 8],
 };
 
+// The two face renderers are the only things that touch the die/coin classes, and each
+// one asserts BOTH directions -- adds its own, removes the other. That way a flip after a
+// roll (or the reverse) can never leave a stale class on the shared #dice-face element.
 function renderDiePips(value) {
   const faceEl = document.getElementById('dice-face');
   faceEl.classList.add('die');
+  faceEl.classList.remove('coin');
   const filled = new Set(DICE_PIP_PATTERNS[value] || []);
   faceEl.innerHTML = '';
   for (let i = 0; i < 9; i++) {
@@ -398,6 +448,13 @@ function renderDiePips(value) {
   }
 }
 
+function renderCoinFace(letter) {
+  const faceEl = document.getElementById('dice-face');
+  faceEl.classList.add('coin');
+  faceEl.classList.remove('die');
+  faceEl.textContent = letter;
+}
+
 function rollDie(sides, onResult) {
   const c = game.combat;
   const forced = c.forcedNextRoll === 'max';
@@ -405,7 +462,11 @@ function rollDie(sides, onResult) {
   const finalValue = forced ? sides : (1 + Math.floor(Math.random() * sides));
 
   const resultEl = document.getElementById('dice-result-text');
+  resultEl.classList.remove('landed');
   resultEl.textContent = '';
+  // Paint a face BEFORE the overlay is shown, or the first 60ms displays whatever the
+  // previous roll or flip left on #dice-face.
+  renderDiePips(1 + Math.floor(Math.random() * sides));
   showDiceOverlay();
 
   let ticks = 0;
@@ -416,7 +477,8 @@ function rollDie(sides, onResult) {
       clearInterval(spin);
       renderDiePips(finalValue);
       resultEl.textContent = `Rolled a ${finalValue}!`;
-      setTimeout(() => { hideDiceOverlay(); onResult(finalValue); }, 900);
+      resultEl.classList.add('landed');
+      setTimeout(() => { hideDiceOverlay(); onResult(finalValue); }, 400);
     }
   }, 60);
 }
@@ -427,23 +489,42 @@ function flipCoin(onResult) {
   if (forced) c.forcedNextRoll = null;
   const heads = forced ? true : Math.random() < 0.5;
 
-  const faceEl = document.getElementById('dice-face');
-  faceEl.classList.remove('die');
   const resultEl = document.getElementById('dice-result-text');
+  resultEl.classList.remove('landed');
   resultEl.textContent = '';
+  // Same pre-paint as rollDie, for the same reason.
+  renderCoinFace(Math.random() < 0.5 ? 'H' : 'T');
   showDiceOverlay();
 
   let ticks = 0;
   const spin = setInterval(() => {
-    faceEl.textContent = Math.random() < 0.5 ? 'H' : 'T';
+    renderCoinFace(Math.random() < 0.5 ? 'H' : 'T');
     ticks++;
     if (ticks > 10) {
       clearInterval(spin);
-      faceEl.textContent = heads ? 'H' : 'T';
+      renderCoinFace(heads ? 'H' : 'T');
       resultEl.textContent = heads ? 'Heads!' : 'Tails...';
-      setTimeout(() => { hideDiceOverlay(); onResult(heads); }, 900);
+      resultEl.classList.add('landed');
+      setTimeout(() => { hideDiceOverlay(); onResult(heads); }, 400);
     }
   }, 60);
+}
+
+// Single source of truth for "can this card be played right now". Both playCard and the
+// render layer call it, so a card the UI greys out is exactly a card playCard refuses.
+// A discardCost is a hard requirement, not a clamped one: the card needs that many OTHER
+// cards in hand to pay with (the card itself is still in hand here, hence length - 1),
+// otherwise it is unplayable rather than resolving at a reduced cost.
+function canPlayCard(card) {
+  const c = game.combat;
+  if (!c || c.discardSelection) return false;
+  if (card.cost > c.energy) return false;
+  if (card.goldCost && card.goldCost > game.gold) return false;
+  if (card.discardCost && c.hand.length - 1 < card.discardCost) return false;
+  // Self-damage must never be lethal or reduce you to 0 -- Blood Money greys itself out
+  // at low HP rather than letting you cash yourself in.
+  if (card.selfDamage && card.selfDamage >= game.hp) return false;
+  return true;
 }
 
 function playCard(uid) {
@@ -452,8 +533,7 @@ function playCard(uid) {
   const idx = c.hand.findIndex(card => card.uid === uid);
   if (idx === -1) return;
   const card = c.hand[idx];
-  if (card.cost > c.energy) return;
-  if (card.goldCost && card.goldCost > game.gold) return;
+  if (!canPlayCard(card)) return;
 
   c.energy -= card.cost;
   if (card.goldCost) game.gold -= card.goldCost;
@@ -462,48 +542,48 @@ function playCard(uid) {
 
   const comboTexts = [];
 
-  if (card.type === 'attack' || card.isAttackToo) {
+  // BLOCK RESOLVES BEFORE ATTACK. Only cards carrying both (isAttackToo) can tell the
+  // difference, and Shield Bash needs it this way round: it gains block first, then hits
+  // for the block it is now standing on. `hits` drives the loop here exactly as it does
+  // for attacks -- cards without it default to 1 and behave as they always did.
+  if (card.block) {
     const hits = card.hits || 1;
+    let totalBlock = 0;
+    let lastMult = 1;
+    for (let h = 0; h < hits; h++) {
+      const { block, mult } = resolveBlockGain(card.block, card.blockComboBonus || 0);
+      totalBlock += block;
+      lastMult = mult;
+    }
+    logMsg(`${card.name} grants ${totalBlock} block.`);
+    if (lastMult > 1.001) comboTexts.push(`BLK x${lastMult.toFixed(2)}`);
+  }
+
+  // `deferredAttack` cards (Glass Cannon) resolve their own damage inside onPlay once a
+  // die settles, so the automatic branch has to skip them -- otherwise they'd land damage
+  // and burn a combo trigger before the roll decides whether they even hit.
+  if ((card.type === 'attack' || card.isAttackToo) && !card.deferredAttack) {
+    const hits = card.hits || 1;
+    // Shield Bash-style cards take their base damage from the block they are standing on
+    // (the block branch above has already run), rather than from a flat baseDamage. The
+    // block is read, not spent -- nothing here zeroes c.block.
+    const baseDmg = card.damageFromBlockPercent
+      ? Math.round(c.block * card.damageFromBlockPercent)
+      : (card.baseDamage || 0);
     let totalDmg = 0;
     let lastMult = 1;
     for (let h = 0; h < hits; h++) {
-      c.turnAttackCount++;
-      const mult = 1 + COMBO_STEP * (c.turnAttackCount - 1);
+      const { damage, mult } = resolveAttackHit(baseDmg, card.comboBonus || 0);
+      totalDmg += damage;
       lastMult = mult;
-      const base = (card.baseDamage || 0) + (card.comboBonus ? card.comboBonus * (c.turnAttackCount - 1) : 0) + (c.soreLoserBonus || 0);
-      totalDmg += Math.round(base * mult);
     }
-    c.boss.hp = Math.max(0, c.boss.hp - totalDmg);
-    c.turnDamageDealt += totalDmg;
     logMsg(`Played ${card.name}: dealt ${totalDmg} damage.`);
     if (lastMult > 1.001) comboTexts.push(`ATK x${lastMult.toFixed(2)}`);
-  }
-
-  if (card.block) {
-    c.turnBlockCount++;
-    const mult = 1 + COMBO_STEP * (c.turnBlockCount - 1);
-    const blockGained = Math.round(card.block * mult);
-    c.block += blockGained;
-    logMsg(`${card.name} grants ${blockGained} block.`);
-    if (mult > 1.001) comboTexts.push(`BLK x${mult.toFixed(2)}`);
-  }
-
-  if (card.damageFromBlockPercent) {
-    const dmg = Math.round(c.block * card.damageFromBlockPercent);
-    c.boss.hp = Math.max(0, c.boss.hp - dmg);
-    c.turnDamageDealt += dmg;
-    c.block = 0;
-    logMsg(`${card.name} converts your block into ${dmg} damage.`);
   }
 
   if (card.selfDamage) {
     game.hp = Math.max(0, game.hp - card.selfDamage);
     logMsg(`${card.name} costs you ${card.selfDamage} HP.`);
-  }
-
-  if (card.retainBlock) {
-    c.retainBlockNextReset = true;
-    logMsg(`${card.name}: your block will carry over into next turn.`);
   }
 
   if (card.gold) {
@@ -544,15 +624,11 @@ function resolveDeferrableEffects(card) {
 }
 
 // ---------- Discard-cost cards (an "offering" paid before the card's effect fires) ----------
+// canPlayCard guarantees enough other cards are in hand before the card is ever played,
+// so there is no clamping or skip-the-cost path here -- the discard always happens in full.
 function beginDiscardSelection(card, count) {
-  const c = game.combat;
-  const remaining = Math.min(count, c.hand.length);
-  if (remaining <= 0) {
-    resolveDeferrableEffects(card);
-    return;
-  }
-  c.discardSelection = { forCard: card, remaining };
-  logMsg(`${card.name}: choose ${remaining} card(s) to discard.`);
+  game.combat.discardSelection = { forCard: card, remaining: count };
+  logMsg(`${card.name}: choose ${count} card(s) to discard.`);
 }
 
 function selectDiscard(uid) {
@@ -591,24 +667,26 @@ function endTurn() {
   c.discardPile.push(...c.hand);
   c.hand = [];
 
-  // resolve any bets on this turn's damage (Hit Job) before the counter resets
-  resolvePendingBets();
-
   // boss attacks
   const dmg = c.boss.pattern[c.boss.patternIndex];
   c.boss.patternIndex = (c.boss.patternIndex + 1) % c.boss.pattern.length;
-  fireEvent('playerAttacked', { damage: dmg }); // Spiked Armor-style retaliation
+  fireEvent('playerAttacked', { damage: dmg }); // Bramble Guard-style retaliation
   const dealt = Math.max(0, dmg - c.block);
   game.hp = Math.max(0, game.hp - dealt);
   logMsg(`${c.boss.name} attacks for ${dmg}${c.block > 0 ? ` (blocked ${Math.min(dmg, c.block)})` : ''}, you take ${dealt}.`);
-  if (c.retainBlockNextReset) {
-    c.retainBlockNextReset = false;
-  } else {
-    c.block = 0;
-  }
+  c.block = 0;
   clearTurnStatuses();
 
   if (game.hp <= 0) {
+    renderCombat();
+    checkCombatEnd();
+    return;
+  }
+
+  // Retaliation (Bramble Guard) resolves on the boss's turn and can finish it off, so the
+  // fight has to be able to end here. Without this you'd start a fresh turn against a
+  // boss sitting on 0 HP.
+  if (c.boss.hp <= 0) {
     renderCombat();
     checkCombatEnd();
     return;
@@ -621,6 +699,11 @@ function endTurn() {
   c.turnDamageDealt = 0;
   c.forcedNextRoll = null; // Loaded Dice only promises "this turn"
   drawCards(currentHandSize() - c.hand.length);
+  // Fired last, once the new turn is fully built: after the death check above (a dead
+  // player collects nothing), after the counters reset (a listener sees a clean turn),
+  // after the draw (a listener can act on the new hand), and before renderCombat() so
+  // anything it grants is on screen immediately. Protection Racket listens here.
+  fireEvent('turnStart', {});
   renderCombat();
 }
 
@@ -765,7 +848,7 @@ function renderCombat() {
   handEl.innerHTML = '';
   c.hand.forEach(card => {
     const div = document.createElement('div');
-    const playable = !selecting && card.cost <= c.energy && (!card.goldCost || card.goldCost <= game.gold);
+    const playable = canPlayCard(card);
     div.className = `card ${card.type}${(!selecting && !playable) ? ' unplayable' : ''}${selecting ? ' discard-target' : ''}`;
     div.dataset.uid = card.uid;
     div.draggable = !selecting;
@@ -850,7 +933,8 @@ function renderMarket() {
     const afford = game.gold >= price;
     const div = document.createElement('div');
     div.className = `market-card ${offer.type}${owned ? ' owned' : ''}${!owned && !afford ? ' cant-afford' : ''}`;
-    div.innerHTML = `<div class="name">${offer.name}</div><div class="desc">${offer.desc}</div><div class="price">${owned ? 'Bought' : price + 'g'}</div>`;
+    const priceLabel = owned ? 'Bought' : (price === 0 ? 'Free' : price + 'g');
+    div.innerHTML = `<div class="name">${offer.name}</div><div class="desc">${offer.desc}</div><div class="price">${priceLabel}</div>`;
     if (!owned) div.onclick = () => buyMarketCard(i);
     cardsEl.appendChild(div);
   });
