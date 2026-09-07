@@ -157,6 +157,11 @@ body {
   40% { transform: scale(1.15); opacity: 1; }
   100% { transform: scale(1); opacity: 1; }
 }
+/* Sibling of pop, for things that should arrive without moving (the dice scrim). */
+@keyframes fade-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
 
 .battlefield { background: #000000; border: 2px solid #ffffff; padding: 14px; }
 .pile-info { display: flex; gap: 16px; color: var(--text); font-size: 0.85rem; margin-bottom: 8px; }
@@ -274,6 +279,9 @@ body {
 .services .btn { display: block; margin-bottom: 8px; width: 100%; text-align: left; }
 
 /* Dice / coin roll overlay (High Roller cards) */
+/* Entry animations replay every time the overlay is un-hidden: going from display:none
+   back to displayed restarts any animation on the element and its subtree. Hiding stays a
+   plain display toggle, so there is no exit animation to wait on. */
 .dice-overlay {
   position: fixed;
   inset: 0;
@@ -282,6 +290,7 @@ body {
   align-items: center;
   justify-content: center;
   z-index: 1000;
+  animation: fade-in 0.15s ease;
 }
 .dice-overlay.hidden { display: none; }
 .dice-box {
@@ -291,6 +300,7 @@ body {
   padding: 40px 60px;
   text-align: center;
   min-width: 200px;
+  animation: pop 0.15s ease;
 }
 .dice-face {
   font-size: 4rem;
@@ -323,4 +333,20 @@ body {
   align-self: center;
 }
 .dice-face .pip-on { background: #000000; }
+/* Coin mode: a solid gold disc with a black letter, mirroring the die's white square with
+   black pips. Same 3px hard border as the die -- no gradient, no sheen. */
+.dice-face.coin {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--gold);
+  border: 3px solid #000000;
+  border-radius: 50%;
+  color: #000000;
+  font-size: 4rem;
+  font-weight: 800;
+}
 .dice-result-text { margin-top: 14px; font-size: 1.1rem; color: var(--gold); min-height: 1.3em; }
+/* Added by rollDie/flipCoin the moment the result text lands, removed at the top of the
+   next roll -- the gap between the two guarantees the animation retriggers. */
+.dice-result-text.landed { animation: pop 0.25s ease; }
