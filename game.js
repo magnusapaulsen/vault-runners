@@ -26,7 +26,7 @@ const CARD_LIBRARY = {
   quickStab: { key: 'quickStab', name: 'Quick Stab', type: 'attack', cost: 1, baseDamage: 4, drawOnPlay: 1, desc: 'Deal 4 damage. Draw 1 card.', price: 25 },
   shieldWall: { key: 'shieldWall', name: 'Shield Wall', type: 'block', cost: 2, block: 14, desc: 'Gain 14 block.', price: 30 },
   sidestep: { key: 'sidestep', name: 'Sidestep', type: 'skill', cost: 0, block: 2, drawOnPlay: 2, desc: '0 cost. Gain 2 block, draw 2 cards.', price: 45 },
-  comboStrike: { key: 'comboStrike', name: 'Combo Strike', type: 'attack', cost: 1, baseDamage: 4, comboBonus: 3, desc: 'Deal 4 damage, +3 per attack already played this turn.', price: 40 },
+  comboStrike: { key: 'comboStrike', name: 'Combo Strike', type: 'attack', cost: 1, baseDamage: 4, comboBonus: 3, desc: 'Deal 4 damage, +3 per hit already played this turn.', price: 40 },
   twinBlades: { key: 'twinBlades', name: 'Twin Blades', type: 'attack', cost: 2, baseDamage: 8, hits: 2, desc: 'Deal 8 damage, twice.', price: 45 },
   heavyStrike: { key: 'heavyStrike', name: 'Heavy Strike', type: 'attack', cost: 3, baseDamage: 30, desc: 'Deal 30 damage.', price: 70 },
   gather: { key: 'gather', name: 'Gather', type: 'skill', cost: 0, drawOnPlay:3, desc: 'Draw 3 cards.', price: 25},
@@ -48,7 +48,7 @@ const CARD_LIBRARY = {
   // so everything here is single-turn value.
   brace: { key: 'brace', name: 'Brace', type: 'block', cost: 0, block: 2, desc: '0 cost. Gain 2 block.', price: 25 },
   bulwark: { key: 'bulwark', name: 'Bulwark', type: 'block', cost: 2, block: 3, hits: 4, desc: 'Gain 3 block, four times.', price: 50 },
-  stonewall: { key: 'stonewall', name: 'Stonewall', type: 'block', cost: 1, block: 4, blockComboBonus: 4, desc: 'Gain 4 block, +4 per block card already played this turn.', price: 40 },
+  stonewall: { key: 'stonewall', name: 'Stonewall', type: 'block', cost: 1, block: 4, blockComboBonus: 4, desc: 'Gain 4 block, +4 per hit already played this turn.', price: 40 },
   shieldBash: {
     key: 'shieldBash', name: 'Shield Bash', type: 'block', cost: 2, block: 8,
     isAttackToo: true, damageFromBlockPercent: 1.0,
@@ -81,7 +81,7 @@ const CARD_LIBRARY = {
   shakedown: { key: 'shakedown', name: 'Shakedown', type: 'loot', cost: 1, gold: 5, desc: 'Gain 5 gold.', price: 30 },
   skim: {
     key: 'skim', name: 'Skim', type: 'loot', cost: 0, goldPerAttack: 1,
-    desc: 'Gain 1 gold per attack already played this turn.',
+    desc: 'Gain 1 gold per hit already played this turn.',
     price: 35,
     onPlay(card) {
       const n = game.combat.turnAttackCount;
@@ -133,8 +133,9 @@ const CARD_LIBRARY = {
     price: 0,
     onPlay(card) {
       rollDie(6, (roll) => {
-        const { damage } = resolveAttackHit(roll * card.damagePerPip);
+        const { damage, mult } = resolveAttackHit(roll * card.damagePerPip);
         logMsg(`Roll the Bones: rolled a ${roll}, dealt ${damage} damage.`);
+        if (mult > 1.001) showComboPopup(`ATK x${mult.toFixed(2)}!`);
         renderCombat();
         checkCombatEnd();
       });
@@ -148,8 +149,9 @@ const CARD_LIBRARY = {
     onPlay(card) {
       flipCoin((heads) => {
         if (heads) {
-          const { damage } = resolveAttackHit(card.winDamage);
+          const { damage, mult } = resolveAttackHit(card.winDamage);
           logMsg(`Double or Nothing: heads! Dealt ${damage} damage.`);
+          if (mult > 1.001) showComboPopup(`ATK x${mult.toFixed(2)}!`);
         } else {
           // Tails matches Glass Cannon's miss: resolveAttackHit is never called, so no
           // damage, no turnDamageDealt, and no turnAttackCount increment -- a whiff must
@@ -169,8 +171,9 @@ const CARD_LIBRARY = {
     onPlay(card) {
       rollDie(6, (roll) => {
         if (roll >= 4) {
-          const { damage } = resolveAttackHit(card.baseDamage);
+          const { damage, mult } = resolveAttackHit(card.baseDamage);
           logMsg(`Glass Cannon: rolled ${roll}, hit for ${damage} damage.`);
+          if (mult > 1.001) showComboPopup(`ATK x${mult.toFixed(2)}!`);
         } else {
           logMsg(`Glass Cannon: rolled ${roll}, misses completely.`);
           trashCard(card);
@@ -318,6 +321,7 @@ function startCombat() {
     exhaustPile: [],
     statuses: [],       // { on: 'turnStart' | 'playerAttacked' | 'cardMissed', scope: 'turn' | 'combat', effect() }
     forcedNextRoll: null, // 'max' consumed by the next rollDie/flipCoin call
+    rolling: false,     // true for the ~1s a die/coin is spinning -- blocks playing cards and ending the turn
     log: [],
   };
   drawCards(currentHandSize());
@@ -397,13 +401,13 @@ function discardRandomCards(n) {
 // for the rest of the fight. Also counts as a "miss" for Sore Loser-style passives.
 function trashCard(card) {
   game.deck = game.deck.filter(x => x.uid !== card.uid);
+  // Only ever called while a card is being played mid-combat, so game.combat always
+  // exists here -- same assumption logMsg/fireEvent below already make.
   const c = game.combat;
-  if (c) {
-    c.drawPile = c.drawPile.filter(x => x.uid !== card.uid);
-    c.hand = c.hand.filter(x => x.uid !== card.uid);
-    c.discardPile = c.discardPile.filter(x => x.uid !== card.uid);
-    c.exhaustPile = c.exhaustPile.filter(x => x.uid !== card.uid);
-  }
+  c.drawPile = c.drawPile.filter(x => x.uid !== card.uid);
+  c.hand = c.hand.filter(x => x.uid !== card.uid);
+  c.discardPile = c.discardPile.filter(x => x.uid !== card.uid);
+  c.exhaustPile = c.exhaustPile.filter(x => x.uid !== card.uid);
   logMsg(`${card.name} is trashed -- removed from your deck for good!`);
   fireEvent('cardMissed', { card });
 }
@@ -484,6 +488,7 @@ function renderCoinFace(letter) {
 
 function rollDie(sides, onResult) {
   const c = game.combat;
+  c.rolling = true;
   const forced = c.forcedNextRoll === 'max';
   if (forced) c.forcedNextRoll = null;
   const finalValue = forced ? sides : (1 + Math.floor(Math.random() * sides));
@@ -505,13 +510,14 @@ function rollDie(sides, onResult) {
       renderDiePips(finalValue);
       resultEl.textContent = `Rolled a ${finalValue}!`;
       resultEl.classList.add('landed');
-      setTimeout(() => { hideDiceOverlay(); onResult(finalValue); }, 400);
+      setTimeout(() => { hideDiceOverlay(); c.rolling = false; onResult(finalValue); }, 400);
     }
   }, 60);
 }
 
 function flipCoin(onResult) {
   const c = game.combat;
+  c.rolling = true;
   const forced = c.forcedNextRoll === 'max';
   if (forced) c.forcedNextRoll = null;
   const heads = forced ? true : Math.random() < 0.5;
@@ -532,7 +538,7 @@ function flipCoin(onResult) {
       renderCoinFace(heads ? 'H' : 'T');
       resultEl.textContent = heads ? 'Heads!' : 'Tails...';
       resultEl.classList.add('landed');
-      setTimeout(() => { hideDiceOverlay(); onResult(heads); }, 400);
+      setTimeout(() => { hideDiceOverlay(); c.rolling = false; onResult(heads); }, 400);
     }
   }, 60);
 }
@@ -544,7 +550,9 @@ function flipCoin(onResult) {
 // otherwise it is unplayable rather than resolving at a reduced cost.
 function canPlayCard(card) {
   const c = game.combat;
-  if (!c || c.discardSelection) return false;
+  // Also refuses while a die/coin is spinning -- a deferred attack's combo trigger isn't
+  // final until it resolves, and End Turn is blocked for the same reason (see rollDie).
+  if (!c || c.discardSelection || c.rolling) return false;
   if (card.cost > c.energy) return false;
   if (card.goldCost && card.goldCost > game.gold) return false;
   if (card.discardCost && c.hand.length - 1 < card.discardCost) return false;
@@ -688,7 +696,7 @@ function showComboPopup(text) {
 
 function endTurn() {
   const c = game.combat;
-  if (!c || game.hp <= 0 || c.boss.hp <= 0 || c.discardSelection) return;
+  if (!c || game.hp <= 0 || c.boss.hp <= 0 || c.discardSelection || c.rolling) return;
 
   // discard remaining hand
   c.discardPile.push(...c.hand);
@@ -906,6 +914,11 @@ function renderCombat() {
 
   document.getElementById('draw-count').textContent = c.drawPile.length;
   document.getElementById('discard-count').textContent = c.discardPile.length;
+  // Only shown once something has actually been exhausted -- most fights never touch
+  // this pile (only Burnout uses exhaustOnPlay today), so it stays out of the way until
+  // it's relevant instead of sitting at a confusing permanent "0".
+  document.getElementById('exhaust-row').classList.toggle('hidden', c.exhaustPile.length === 0);
+  document.getElementById('exhaust-count').textContent = c.exhaustPile.length;
 
   const selecting = !!c.discardSelection;
   const handEl = document.getElementById('hand');
@@ -944,7 +957,7 @@ function renderCombat() {
   } else {
     promptEl.classList.add('hidden');
   }
-  document.getElementById('btn-end-turn').disabled = selecting;
+  document.getElementById('btn-end-turn').disabled = selecting || c.rolling;
 
   const logEl = document.getElementById('combat-log');
   logEl.innerHTML = c.log.slice(0, 6).map(m => `<div>${m}</div>`).join('');

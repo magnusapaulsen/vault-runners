@@ -165,6 +165,7 @@ body {
 
 .battlefield { background: #000000; border: 2px solid #ffffff; padding: 14px; }
 .pile-info { display: flex; gap: 16px; color: var(--text); font-size: 0.85rem; margin-bottom: 8px; }
+.pile-info .hidden { display: none; }
 
 .hand {
   display: flex;
