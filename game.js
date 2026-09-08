@@ -212,13 +212,32 @@ const SHOP_POOL_KEYS = [
   'rollTheBones', 'doubleOrNothing', 'glassCannon', 'loadedDiceCard',
 ];
 
-// HP roughly doubled from the original 42/68/95 -- High Roller cards can swing 30-50
-// damage in one card, which would trivialize fights at the old scale.
+// 10-boss curve (up from 4) so a run means more market visits and more time building
+// the deck. HP steps get bigger each fight (18, 24, 30, 38, 45, 55, 65, 75, 80) rather
+// than scaling linearly -- early fights are easy on a starter deck with 3 energy/turn,
+// and the ramp steepens later once the player has had several markets to buy cards and
+// trinkets.
+//
+// Every pattern includes one 0 -- a real "boss does nothing this turn" beat, telegraphed
+// by the intent display like anything else -- paired with a spike roughly 2x the old max
+// hit. This closes off stalling out a fight on purpose (playing only loot/skip turns to
+// reshuffle the deck and re-farm gold cards indefinitely): the free turn is real, but the
+// cycle's other beats hit hard enough that turtling through many cycles to grind gold
+// still costs meaningful HP, rather than the old flat, low patterns that a starter deck
+// could tank forever. Early bosses got the biggest relative jump since they were the
+// easiest to stall on. God keeps its "no escape" flavor -- still no single dominant
+// spike -- but now also has one dead beat like every other boss.
 const BOSSES = [
-  { name: 'Cave Troll', maxHp: 90, pattern: [6, 6, 11] },
-  { name: 'Rock Golem', maxHp: 150, pattern: [8, 8, 14, 5] },
-  { name: 'The Dragon', maxHp: 220, pattern: [11, 11, 9, 22] },
-  { name: 'God', maxHp: 500, pattern: [6, 7] },
+  { name: 'Rat Swarm',    maxHp: 50,  pattern: [0, 6, 9, 4] },
+  { name: 'Cave Troll',   maxHp: 68,  pattern: [0, 8, 13, 6] },
+  { name: 'Bandit Chief', maxHp: 92,  pattern: [0, 9, 16, 7] },
+  { name: 'Rock Golem',   maxHp: 122, pattern: [0, 10, 19, 8] },
+  { name: 'Swamp Hag',    maxHp: 160, pattern: [0, 12, 22, 9] },
+  { name: 'Iron Sentinel',maxHp: 205, pattern: [0, 13, 25, 10] },
+  { name: 'The Dragon',   maxHp: 260, pattern: [0, 14, 28, 11] },
+  { name: 'Lich',         maxHp: 325, pattern: [0, 15, 31, 12] },
+  { name: 'Void Herald',  maxHp: 400, pattern: [0, 16, 34, 13] },
+  { name: 'God',          maxHp: 480, pattern: [0, 13, 15, 17, 13] },
 ];
 
 const HAND_SIZE = 5;
@@ -311,13 +330,21 @@ function drawCards(n) {
   const c = game.combat;
   for (let i = 0; i < n; i++) {
     if (c.drawPile.length === 0) {
-      if (c.discardPile.length === 0) return; // nothing left to draw
+      if (c.discardPile.length === 0) break; // nothing left to draw
       c.drawPile = shuffle(c.discardPile);
       c.discardPile = [];
       logMsg('Shuffled discard pile into draw pile.');
     }
     c.hand.push(c.drawPile.pop());
   }
+  assignHandSlots();
+}
+
+// A card's number-key slot is sticky: it's assigned here (on draw or reorder) and then
+// left alone as cards are played/discarded out of hand, so playing card 1 never shifts
+// what 2-5 mean -- only a fresh draw or a manual reorder renumbers the hand.
+function assignHandSlots() {
+  game.combat.hand.forEach((card, i) => { card.handSlot = i; });
 }
 
 function logMsg(msg) {
@@ -673,7 +700,11 @@ function endTurn() {
   fireEvent('playerAttacked', { damage: dmg }); // Bramble Guard-style retaliation
   const dealt = Math.max(0, dmg - c.block);
   game.hp = Math.max(0, game.hp - dealt);
-  logMsg(`${c.boss.name} attacks for ${dmg}${c.block > 0 ? ` (blocked ${Math.min(dmg, c.block)})` : ''}, you take ${dealt}.`);
+  if (dmg === 0) {
+    logMsg(`${c.boss.name} does nothing this turn.`);
+  } else {
+    logMsg(`${c.boss.name} attacks for ${dmg}${c.block > 0 ? ` (blocked ${Math.min(dmg, c.block)})` : ''}, you take ${dealt}.`);
+  }
   c.block = 0;
   clearTurnStatuses();
 
@@ -814,6 +845,36 @@ function continueFromMarket() {
   }
 }
 
+// ---------- Number-key hand shortcuts ----------
+// Position in hand -> key label: 1..9 then 0 for the 10th card. Hands past 10 cards have
+// no keybind for the overflow (click only) -- rebinding onto QWERTY would cover ground
+// this game never needs, since hand size only grows in +1 steps via the Hand Size trinket.
+function handKeyLabel(index) {
+  if (index < 9) return String(index + 1);
+  if (index === 9) return '0';
+  return null;
+}
+
+document.addEventListener('keydown', (e) => {
+  if (!game || !game.combat) return;
+  if (!document.getElementById('screen-combat').classList.contains('active')) return;
+  const key = e.key;
+  let idx;
+  if (key >= '1' && key <= '9') idx = key.charCodeAt(0) - '1'.charCodeAt(0);
+  else if (key === '0') idx = 9;
+  else return;
+
+  const c = game.combat;
+  const card = c.hand.find(h => h.handSlot === idx);
+  if (!card) return;
+
+  if (c.discardSelection) {
+    selectDiscard(card.uid);
+  } else if (canPlayCard(card)) {
+    playCard(card.uid);
+  }
+});
+
 // ---------- Rendering ----------
 function showScreen(id) {
   document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
@@ -838,7 +899,10 @@ function renderCombat() {
   document.getElementById('boss-name').textContent = `${c.boss.name}  (Boss ${game.bossIndex + 1}/${BOSSES.length})`;
   document.getElementById('boss-hp-fill').style.width = `${Math.max(0, (c.boss.hp / c.boss.maxHp) * 100)}%`;
   document.getElementById('boss-hp-text').textContent = `${c.boss.hp}/${c.boss.maxHp}`;
-  document.getElementById('boss-intent').textContent = `Intent: ⚔ ${c.boss.pattern[c.boss.patternIndex]} damage next turn`;
+  const nextHit = c.boss.pattern[c.boss.patternIndex];
+  document.getElementById('boss-intent').textContent = nextHit === 0
+    ? 'Intent: 💤 nothing next turn'
+    : `Intent: ⚔ ${nextHit} damage next turn`;
 
   document.getElementById('draw-count').textContent = c.drawPile.length;
   document.getElementById('discard-count').textContent = c.discardPile.length;
@@ -849,12 +913,14 @@ function renderCombat() {
   c.hand.forEach(card => {
     const div = document.createElement('div');
     const playable = canPlayCard(card);
+    const key = handKeyLabel(card.handSlot);
     div.className = `card ${card.type}${(!selecting && !playable) ? ' unplayable' : ''}${selecting ? ' discard-target' : ''}`;
     div.dataset.uid = card.uid;
     div.draggable = !selecting;
     div.innerHTML = `
       <div class="cost">${card.cost}</div>
       ${card.goldCost ? `<div class="gold-cost">${card.goldCost}</div>` : ''}
+      ${key ? `<div class="keybind">${key}</div>` : ''}
       <div class="name">${card.name}</div>
       <div class="desc">${cardDescText(card)}</div>
     `;
@@ -902,6 +968,10 @@ function attachHandDragEvents(div) {
     div.classList.remove('dragging');
     draggedCardEl = null;
     syncHandOrderFromDOM();
+    assignHandSlots();
+    // Full re-render (safe now that the drag session is over) so each card's number
+    // badge matches its new position -- reordering hand cards must swap their keybinds.
+    renderCombat();
   };
   div.ondragover = (e) => {
     e.preventDefault();

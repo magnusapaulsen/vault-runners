@@ -227,6 +227,19 @@ body {
   font-weight: 800;
   border: 2px solid #000000;
 }
+/* Number-key play hint -- bottom-left, mirrors the corner badges above it */
+.card .keybind {
+  position: absolute;
+  bottom: -10px; left: -10px;
+  width: 24px; height: 24px;
+  background: #ffffff;
+  color: #000000;
+  border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  font-weight: 800;
+  font-size: 0.8rem;
+  border: 2px solid #000000;
+}
 .card .name { font-weight: 700; font-size: 0.95rem; margin-top: 8px; }
 .card .desc { font-size: 0.8rem; line-height: 1.25; }
 
