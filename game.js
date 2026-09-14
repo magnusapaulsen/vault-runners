@@ -25,39 +25,39 @@ const CARD_LIBRARY = {
 
   quickStab: { key: 'quickStab', name: 'Quick Stab', type: 'attack', cost: 1, baseDamage: 4, drawOnPlay: 1, desc: 'Deal 4 damage. Draw 1 card.', price: 25 },
   shieldWall: { key: 'shieldWall', name: 'Shield Wall', type: 'block', cost: 2, block: 14, desc: 'Gain 14 block.', price: 30 },
-  sidestep: { key: 'sidestep', name: 'Sidestep', type: 'skill', cost: 0, block: 2, drawOnPlay: 2, desc: '0 cost. Gain 2 block, draw 2 cards.', price: 45 },
-  comboStrike: { key: 'comboStrike', name: 'Combo Strike', type: 'attack', cost: 1, baseDamage: 4, comboBonus: 3, desc: 'Deal 4 damage, +3 per hit already played this turn.', price: 40 },
-  twinBlades: { key: 'twinBlades', name: 'Twin Blades', type: 'attack', cost: 2, baseDamage: 8, hits: 2, desc: 'Deal 8 damage, twice.', price: 45 },
+  sidestep: { key: 'sidestep', name: 'Sidestep', type: 'skill', cost: 0, block: 2, drawOnPlay: 2, desc: 'Gain 2 block. Draw 2 cards.', price: 45 },
+  comboStrike: { key: 'comboStrike', name: 'Combo Strike', type: 'attack', cost: 1, baseDamage: 4, comboBonus: 3, desc: 'Deal 4 damage (+3 per attack played this turn).', price: 40 },
+  twinBlades: { key: 'twinBlades', name: 'Twin Blades', type: 'attack', cost: 2, baseDamage: 8, hits: 2, desc: 'Deal 8 damage, 2 times.', price: 45 },
   heavyStrike: { key: 'heavyStrike', name: 'Heavy Strike', type: 'attack', cost: 3, baseDamage: 30, desc: 'Deal 30 damage.', price: 70 },
   gather: { key: 'gather', name: 'Gather', type: 'skill', cost: 0, drawOnPlay:3, desc: 'Draw 3 cards.', price: 25},
-  overdraw: { key: 'overdraw', name: 'Overdraw', type: 'skill', cost: 0, discardCost: 2, drawOnPlay: 4, desc: 'Requires 2 other cards in hand. Discard 2 cards, draw 4 cards.', price: 40 },
+  overdraw: { key: 'overdraw', name: 'Overdraw', type: 'skill', cost: 0, discardCost: 2, drawOnPlay: 4, desc: 'Discard 2 cards. Draw 4 cards.', price: 40 },
   spark: { key: 'spark', name: 'Spark', type: 'skill', cost: 0, energyGain: 1, desc: 'Gain 1 energy.', price: 30 },
-  overcharge: { key: 'overcharge', name: 'Overcharge', type: 'skill', cost: 0, discardCost: 1, energyGain: 1, desc: 'Requires 1 other card in hand. Discard 1 card, gain 1 energy.', price: 45 },
+  overcharge: { key: 'overcharge', name: 'Overcharge', type: 'skill', cost: 0, discardCost: 1, energyGain: 1, desc: 'Discard 1 card. Gain 1 energy.', price: 45 },
 
   // ---- Combo Flurry (Red + Purple/skill) ----
   thousandCuts: { key: 'thousandCuts', name: 'Thousand Cuts', type: 'attack', cost: 2, baseDamage: 2, hits: 5, desc: 'Deal 2 damage, 5 times.', price: 45 },
   armor: { key: 'armor', name: 'Armor', type: 'block', cost: 3, block: 24, desc: 'Gain 24 block.', price: 40 },
 
   // ---- Overheat Engine (Purple/skill) ----
-  burnout: { key: 'burnout', name: 'Burnout', type: 'skill', cost: 0, energyGain: 3, drawOnPlay: 3, exhaustOnPlay: true, desc: 'Gain 3 energy, draw 3 cards. Exhaust (removed for the rest of this combat).', price: 50 },
+  burnout: { key: 'burnout', name: 'Burnout', type: 'skill', cost: 0, energyGain: 3, drawOnPlay: 3, exhaustOnPlay: true, desc: 'Gain 3 energy. Draw 3 cards. Exhausts after use.', price: 50 },
 
   // ---- The Phalanx (block / retaliation) ----
   // Block mirrors attack: turnBlockCount ticks once per hit, so `hits` buys triggers here
   // the same way it does on the attack side, and blockComboBonus is the block twin of
   // comboBonus. Remember block does not carry over -- c.block is wiped every endTurn --
   // so everything here is single-turn value.
-  brace: { key: 'brace', name: 'Brace', type: 'block', cost: 0, block: 2, desc: '0 cost. Gain 2 block.', price: 25 },
-  bulwark: { key: 'bulwark', name: 'Bulwark', type: 'block', cost: 2, block: 3, hits: 4, desc: 'Gain 3 block, four times.', price: 50 },
-  stonewall: { key: 'stonewall', name: 'Stonewall', type: 'block', cost: 1, block: 4, blockComboBonus: 4, desc: 'Gain 4 block, +4 per hit already played this turn.', price: 40 },
+  brace: { key: 'brace', name: 'Brace', type: 'block', cost: 0, block: 2, desc: 'Gain 2 block.', price: 25 },
+  bulwark: { key: 'bulwark', name: 'Bulwark', type: 'block', cost: 2, block: 3, hits: 4, desc: 'Gain 3 block, 4 times.', price: 50 },
+  stonewall: { key: 'stonewall', name: 'Stonewall', type: 'block', cost: 1, block: 4, blockComboBonus: 4, desc: 'Gain 4 block (+4 per block played this turn).', price: 40 },
   shieldBash: {
     key: 'shieldBash', name: 'Shield Bash', type: 'block', cost: 2, block: 8,
     isAttackToo: true, damageFromBlockPercent: 1.0,
-    desc: 'Gain 8 block, then deal damage equal to your block. Your block is not spent.',
+    desc: 'Gain 8 block, then deal damage equal to your block.',
     price: 55,
   },
   brambleGuard: {
     key: 'brambleGuard', name: 'Bramble Guard', type: 'block', cost: 2, block: 10, retaliateDamage: 5,
-    desc: 'Gain 10 block. Whenever you are attacked, deal 5 damage back for the rest of this combat.',
+    desc: 'Gain 10 block. Retaliate for 5 damage when attacked this combat.',
     price: 50,
     onPlay(card) {
       // Combat-scoped, unlike the old turn-scoped Spiked Armor: it survives
@@ -81,7 +81,7 @@ const CARD_LIBRARY = {
   shakedown: { key: 'shakedown', name: 'Shakedown', type: 'loot', cost: 1, gold: 5, desc: 'Gain 5 gold.', price: 30 },
   skim: {
     key: 'skim', name: 'Skim', type: 'loot', cost: 0, goldPerAttack: 1,
-    desc: 'Gain 1 gold per hit already played this turn.',
+    desc: 'Gain 1 gold per attack played this turn.',
     price: 35,
     onPlay(card) {
       const n = game.combat.turnAttackCount;
@@ -96,7 +96,7 @@ const CARD_LIBRARY = {
   crackTheVault: { key: 'crackTheVault', name: 'Crack the Vault', type: 'loot', cost: 3, gold: 15, desc: 'Gain 15 gold.', price: 45 },
   protectionRacket: {
     key: 'protectionRacket', name: 'Protection Racket', type: 'loot', cost: 1, goldPerTurn: 3,
-    desc: 'Gain 3 gold at the start of each turn for the rest of this combat.',
+    desc: 'Gain 3 gold at the start of each turn this combat.',
     price: 50,
     onPlay(card) {
       // Combat-scoped, so it survives clearTurnStatuses() and keeps paying every turn until
@@ -109,7 +109,7 @@ const CARD_LIBRARY = {
       logMsg('Protection Racket: the arrangement starts paying next turn.');
     },
   },
-  bloodMoney: { key: 'bloodMoney', name: 'Blood Money', type: 'loot', cost: 0, selfDamage: 5, gold: 8, desc: 'Lose 5 HP. Gain 8 gold. Unplayable if it would kill you.', price: 35 },
+  bloodMoney: { key: 'bloodMoney', name: 'Blood Money', type: 'loot', cost: 0, selfDamage: 5, gold: 8, desc: 'Lose 5 HP. Gain 8 gold.', price: 35 },
 
   // ---- The High Roller (Gold, with cross-color support) ----
   // Both gamble cards are free to acquire (price: 0) and free in energy (cost: 0), and
@@ -129,7 +129,7 @@ const CARD_LIBRARY = {
   rollTheBones: {
     key: 'rollTheBones', name: 'Roll the Bones', type: 'loot', cost: 0, deferredAttack: true,
     goldCost: 5, damagePerPip: 2,
-    desc: 'Pay 5 gold. Roll a die. Deal (roll x 2) damage. Counts for combo.',
+    desc: 'Pay 5 gold. Roll a die: deal 2x the roll in damage.',
     price: 0,
     onPlay(card) {
       rollDie(6, (roll) => {
@@ -144,7 +144,7 @@ const CARD_LIBRARY = {
   doubleOrNothing: {
     key: 'doubleOrNothing', name: 'Double or Nothing', type: 'loot', cost: 0, deferredAttack: true,
     goldCost: 5, winDamage: 15,
-    desc: 'Pay 5 gold. 50% chance: deal 15 damage, counting for combo. 50% chance: nothing.',
+    desc: 'Pay 5 gold. Coin flip: heads deals 15 damage, tails nothing.',
     price: 0,
     onPlay(card) {
       flipCoin((heads) => {
@@ -166,7 +166,7 @@ const CARD_LIBRARY = {
   },
   glassCannon: {
     key: 'glassCannon', name: 'Glass Cannon', type: 'attack', cost: 0, baseDamage: 30, deferredAttack: true,
-    desc: '0 cost. Roll a die -- on a 4, 5 or 6 deal 30 damage. On a 1, 2 or 3 it deals nothing and is trashed permanently.',
+    desc: 'Roll a die: 4+ deals 30 damage, else this card is destroyed.',
     price: 50,
     onPlay(card) {
       rollDie(6, (roll) => {
@@ -188,7 +188,7 @@ const CARD_LIBRARY = {
   // overlap worth knowing about.
   loadedDiceCard: {
     key: 'loadedDiceCard', name: 'Loaded Dice', type: 'skill', cost: 0,
-    desc: '0 cost. Your next die roll or coin flip this turn is guaranteed to hit its best outcome.',
+    desc: 'Your next roll or flip this turn is guaranteed to hit its best outcome.',
     price: 40,
     onPlay(card) { game.combat.forcedNextRoll = 'max'; },
   },
@@ -262,6 +262,10 @@ function newRun() {
     shopDiscount: 0,
     shopSizeBonus: 0,
     trinketLevels: Object.fromEntries(Object.keys(TRINKET_LIBRARY).map(k => [k, 0])),
+    // Cost of the next market card reroll -- climbs by 1 each use and never resets between
+    // shop visits (only newRun() resets it), so rerolling repeatedly across a whole run
+    // gets steadily more expensive.
+    rerollCost: 1,
     bossIndex: 0,
     // combat-only state, set by startCombat
     combat: null,
@@ -771,6 +775,18 @@ function openMarket() {
   renderMarket();
 }
 
+// Rerolls just the card offers for gold, at an ever-climbing price (see rerollCost's
+// comment in newRun). Trinkets are a deterministic slice of TRINKET_LIBRARY, not a random
+// draw, so there's nothing to reroll there.
+function rerollShop() {
+  if (game.gold < game.rerollCost) return;
+  game.gold -= game.rerollCost;
+  game.rerollCost += 1;
+  marketState.cardOffers = shuffle(SHOP_POOL_KEYS).slice(0, cardShopSlots()).map(k => ({ ...CARD_LIBRARY[k] }));
+  marketState.boughtCardKeys = new Set();
+  renderMarket();
+}
+
 // Trinket offers aren't rolled/cached like cards -- they're a deterministic slice of
 // TRINKET_LIBRARY sized by the current shopSize level, so they're always computed fresh.
 function currentTrinketOffers() {
@@ -832,8 +848,8 @@ function renderRemoveScreen() {
   el.innerHTML = '';
   game.deck.forEach((card, i) => {
     const div = document.createElement('div');
-    div.className = `market-card ${card.type}`;
-    div.innerHTML = `<div class="name">${card.name}</div><div class="desc">${card.desc}</div>`;
+    div.className = `card shop-card ${card.type}`;
+    div.innerHTML = cardFaceHTML(card, null);
     div.onclick = () => {
       game.deck.splice(i, 1);
       game.gold -= removeCost();
@@ -866,6 +882,15 @@ function handKeyLabel(index) {
 document.addEventListener('keydown', (e) => {
   if (!game || !game.combat) return;
   if (!document.getElementById('screen-combat').classList.contains('active')) return;
+
+  // Space ends the turn -- preventDefault so it doesn't also scroll the page or, if an
+  // <button> happens to have focus, double-fire via the browser's own space-to-click.
+  if (e.key === ' ' || e.code === 'Space') {
+    e.preventDefault();
+    endTurn();
+    return;
+  }
+
   const key = e.key;
   let idx;
   if (key >= '1' && key <= '9') idx = key.charCodeAt(0) - '1'.charCodeAt(0);
@@ -893,6 +918,64 @@ function cardDescText(card) {
   return card.desc;
 }
 
+// ---------- Card badges (the colored circles showing cost / hotkey / attack / block) ----------
+// One shared readout so a hand card and its shop listing always agree on what a card does --
+// cardAttackDisplay/cardBlockDisplay are the single source of truth for "how much damage or
+// block does this number actually represent", used by both cornerBadges/statBadges below.
+
+// Not every attack card carries a flat baseDamage -- Shield Bash derives its hit from the
+// block it just gained, and Double or Nothing has a flat payout under a different field
+// name. Pure-gamble cards (Roll the Bones) have no single number to show and are skipped.
+function cardAttackDisplay(card) {
+  if (card.damageFromBlockPercent) return Math.round((card.block || 0) * card.damageFromBlockPercent);
+  if (card.baseDamage != null) return card.baseDamage;
+  if (card.winDamage != null) return card.winDamage;
+  return null;
+}
+
+function cardBlockDisplay(card) {
+  return card.block || null;
+}
+
+// Cost / gold-cost / hotkey badges, pinned to the card's corners. `keybind` is the hand-only
+// hotkey label (null in the shop, where cards have no hotkey to show).
+function cornerBadges(card, keybind) {
+  return `
+    <div class="badge badge-cost" title="Energy cost">${card.cost}</div>
+    ${card.goldCost ? `<div class="badge badge-goldcost" title="Gold cost">${card.goldCost}</div>` : ''}
+    ${keybind ? `<div class="badge badge-key" title="Hotkey">${keybind}</div>` : ''}
+  `;
+}
+
+// Attack/block badges, laid out inline (not pinned) so they sit in their own row on the
+// card face instead of fighting the corner badges for space.
+function statBadges(card) {
+  const hits = card.hits || 1;
+  const atk = cardAttackDisplay(card);
+  const block = cardBlockDisplay(card);
+  if (atk == null && block == null) return '';
+  const atkText = atk == null ? null : (hits > 1 ? `${atk}×${hits}` : `${atk}`);
+  const blockText = block == null ? null : (hits > 1 ? `${block}×${hits}` : `${block}`);
+  return `
+    <div class="stat-badges">
+      ${atkText != null ? `<div class="badge badge-atk${atkText.length > 2 ? ' wide' : ''}" title="Attack damage">${atkText}</div>` : ''}
+      ${blockText != null ? `<div class="badge badge-block${blockText.length > 2 ? ' wide' : ''}" title="Block">${blockText}</div>` : ''}
+    </div>
+  `;
+}
+
+// Full card face -- badges plus the text body. Shared by the hand, the shop, and the
+// remove screen so a card looks identical everywhere it's shown.
+function cardFaceHTML(card, keybind) {
+  return `
+    ${cornerBadges(card, keybind)}
+    <div class="type-label">${card.type}</div>
+    <div class="name">${card.name}</div>
+    ${statBadges(card)}
+    <div class="desc">${cardDescText(card)}</div>
+  `;
+}
+
 function renderCombat() {
   const c = game.combat;
   if (!c) return;
@@ -909,8 +992,8 @@ function renderCombat() {
   document.getElementById('boss-hp-text').textContent = `${c.boss.hp}/${c.boss.maxHp}`;
   const nextHit = c.boss.pattern[c.boss.patternIndex];
   document.getElementById('boss-intent').textContent = nextHit === 0
-    ? 'Intent: 💤 nothing next turn'
-    : `Intent: ⚔ ${nextHit} damage next turn`;
+    ? 'Intent: nothing next turn'
+    : `Intent: ${nextHit} damage next turn`;
 
   document.getElementById('draw-count').textContent = c.drawPile.length;
   document.getElementById('discard-count').textContent = c.discardPile.length;
@@ -930,13 +1013,7 @@ function renderCombat() {
     div.className = `card ${card.type}${(!selecting && !playable) ? ' unplayable' : ''}${selecting ? ' discard-target' : ''}`;
     div.dataset.uid = card.uid;
     div.draggable = !selecting;
-    div.innerHTML = `
-      <div class="cost">${card.cost}</div>
-      ${card.goldCost ? `<div class="gold-cost">${card.goldCost}</div>` : ''}
-      ${key ? `<div class="keybind">${key}</div>` : ''}
-      <div class="name">${card.name}</div>
-      <div class="desc">${cardDescText(card)}</div>
-    `;
+    div.innerHTML = cardFaceHTML(card, key);
     if (selecting) {
       div.onclick = () => selectDiscard(card.uid);
     } else {
@@ -1007,19 +1084,35 @@ function renderMarket() {
   document.getElementById('market-gold-text').textContent = game.gold;
   document.getElementById('heal-cost').textContent = healCost();
   document.getElementById('remove-cost').textContent = removeCost();
+  document.getElementById('reroll-cost').textContent = game.rerollCost;
+  document.getElementById('btn-reroll').disabled = game.gold < game.rerollCost;
 
+  // Every shop offer is a .shop-slot: the offer itself (a real .card for a purchasable
+  // card, identical to how it looks in hand; a plain box for a trinket) stacked above its
+  // own .shop-price element, so the price always sits below the thing being priced instead
+  // of being baked into the card/box.
   const cardsEl = document.getElementById('market-cards');
   cardsEl.innerHTML = '';
   marketState.cardOffers.forEach((offer, i) => {
     const owned = marketState.boughtCardKeys.has(i);
     const price = discountedPrice(offer.price);
     const afford = game.gold >= price;
+
+    const slot = document.createElement('div');
+    slot.className = `shop-slot${owned ? ' owned' : ''}${!owned && !afford ? ' cant-afford' : ''}`;
+
     const div = document.createElement('div');
-    div.className = `market-card ${offer.type}${owned ? ' owned' : ''}${!owned && !afford ? ' cant-afford' : ''}`;
-    const priceLabel = owned ? 'Bought' : (price === 0 ? 'Free' : price + 'g');
-    div.innerHTML = `<div class="name">${offer.name}</div><div class="desc">${offer.desc}</div><div class="price">${priceLabel}</div>`;
-    if (!owned) div.onclick = () => buyMarketCard(i);
-    cardsEl.appendChild(div);
+    div.className = `card shop-card ${offer.type}`;
+    div.innerHTML = cardFaceHTML(offer, null);
+
+    const priceEl = document.createElement('div');
+    priceEl.className = 'shop-price';
+    priceEl.textContent = owned ? 'Bought' : (price === 0 ? 'Free' : price + 'g');
+
+    slot.appendChild(div);
+    slot.appendChild(priceEl);
+    if (!owned) slot.onclick = () => buyMarketCard(i);
+    cardsEl.appendChild(slot);
   });
 
   // Trinkets are repeatable, so there's no "owned" state -- just a stacking level.
@@ -1029,11 +1122,22 @@ function renderMarket() {
     const price = discountedPrice(offer.price);
     const afford = game.gold >= price;
     const level = game.trinketLevels[offer.key];
+
+    const slot = document.createElement('div');
+    slot.className = `shop-slot${!afford ? ' cant-afford' : ''}`;
+
     const div = document.createElement('div');
-    div.className = `market-card trinket${!afford ? ' cant-afford' : ''}`;
-    div.innerHTML = `<div class="name">${offer.name}${level > 0 ? ` (Lv ${level})` : ''}</div><div class="desc">${offer.desc}</div><div class="price">${price}g</div>`;
-    div.onclick = () => buyMarketTrinket(i);
-    trinketsEl.appendChild(div);
+    div.className = 'market-card trinket';
+    div.innerHTML = `<div class="name">${offer.name}${level > 0 ? ` (Lv ${level})` : ''}</div><div class="desc">${offer.desc}</div>`;
+
+    const priceEl = document.createElement('div');
+    priceEl.className = 'shop-price';
+    priceEl.textContent = `${price}g`;
+
+    slot.appendChild(div);
+    slot.appendChild(priceEl);
+    slot.onclick = () => buyMarketTrinket(i);
+    trinketsEl.appendChild(slot);
   });
 
   document.getElementById('btn-heal').disabled = game.gold < healCost() || game.hp >= game.maxHp;
@@ -1044,6 +1148,7 @@ function renderMarket() {
 document.getElementById('btn-new-run').onclick = newRun;
 document.getElementById('btn-end-turn').onclick = endTurn;
 document.getElementById('btn-continue').onclick = continueFromMarket;
+document.getElementById('btn-reroll').onclick = rerollShop;
 document.getElementById('btn-heal').onclick = doHeal;
 document.getElementById('btn-remove').onclick = openRemoveScreen;
 document.getElementById('btn-cancel-remove').onclick = () => { showScreen('screen-market'); renderMarket(); };

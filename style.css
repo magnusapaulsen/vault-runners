@@ -3,9 +3,14 @@
   --text: #ffffff;
   --hp: #00ff00;
   --boss: #ff0000;
-  --gold: #ffff00;   /* gold/currency number color, also the loot-type card fill */
+  --boss-dark: #2a0505;   /* attack card fill -- a near-black tint of --boss */
+  --gold: #ffff00;        /* gold/currency number color, also the loot-type card border */
+  --gold-dark: #2e2900;   /* loot card fill -- a near-black tint of --gold */
   --block: #0000ff;
-  --skill: #ff00ff;  /* skill-type card fill -- covers both draw and energy effects */
+  --block-dark: #06082e;  /* block card fill -- a near-black tint of --block */
+  --skill: #a855f7;       /* skill card border -- covers both draw and energy effects */
+  --skill-dark: #1f0e33;  /* skill card fill -- a near-black tint of --skill */
+  --cost: #ff9d1a;        /* energy-cost badge color -- distinct from every card-type color */
   font-size: 16px;
 }
 
@@ -171,24 +176,28 @@ body {
   display: flex;
   gap: 10px;
   flex-wrap: wrap;
-  min-height: 190px;
+  min-height: 220px;
   justify-content: center;
   padding: 10px 0;
 }
 
+/* ---- Card frame: back to the flat retro look (sharp corners, hard offset shadow, same
+   language as every other panel/button) but keeping the one thing worth keeping from the
+   Slay-the-Spire pass -- a bright type-color border ring around a near-black tint of that
+   same color, instead of the original flat bright fill. ---- */
 .card {
-  width: 130px;
-  height: 175px;
+  width: 152px;
+  height: 208px;
   border-radius: 0;
   padding: 10px;
   display: flex;
   flex-direction: column;
-  justify-content: space-between;
   cursor: grab;
-  border: 2px solid #000000;
+  border: 3px solid #000000;
   box-shadow: 4px 4px 0 #ffffff;
   transition: transform 0.08s ease, box-shadow 0.08s ease;
   position: relative;
+  color: var(--text);
 }
 .card:hover { transform: translate(-3px, -3px); box-shadow: 7px 7px 0 #ffffff; }
 .card.unplayable { opacity: 0.35; }
@@ -196,53 +205,82 @@ body {
 .card.dragging { opacity: 0.35; cursor: grabbing; }
 .card.dragging:hover { transform: none; box-shadow: 4px 4px 0 #ffffff; }
 
-.card.attack, .market-card.attack { background: var(--boss);  color: #ffffff; border-color: #000000; }
-.card.block,  .market-card.block  { background: var(--block); color: #ffffff; border-color: #000000; }
-.card.loot,   .market-card.loot   { background: var(--gold);  color: #000000; border-color: #000000; }
-.card.skill,  .market-card.skill  { background: var(--skill); color: #000000; border-color: #000000; }
+.card.attack { border-color: var(--boss);  background: var(--boss-dark); }
+.card.block  { border-color: var(--block); background: var(--block-dark); }
+.card.loot   { border-color: var(--gold);  background: var(--gold-dark); }
+.card.skill  { border-color: var(--skill); background: var(--skill-dark); }
 .market-card.trinket { background: #000000; color: #ffffff; border-color: #ffffff; }
 
 /* Discard-cost selection mode: hand cards become discard targets instead of playable */
 .card.discard-target { outline: 3px dashed #ffffff; outline-offset: 2px; cursor: pointer; }
 
-.card .cost {
-  position: absolute;
-  top: -10px; left: -10px;
+/* ---- Badges: colored circles carrying the card's at-a-glance numbers. Cost/gold-cost/
+   hotkey are pinned to a corner each; attack/block sit inline in their own row (see
+   .stat-badges) since a card can carry both at once (Shield Bash) and corners run out. ---- */
+.badge {
   width: 28px; height: 28px;
-  background: #000000;
-  color: #ffffff;
   border-radius: 50%;
   display: flex; align-items: center; justify-content: center;
   font-weight: 800;
-  border: 2px solid #ffffff;
-}
-/* Gold cost badge (High Roller cards) -- mirrors .cost but on the opposite corner */
-.card .gold-cost {
-  position: absolute;
-  top: -10px; right: -10px;
-  width: 28px; height: 28px;
-  background: var(--gold);
-  color: #000000;
-  border-radius: 50%;
-  display: flex; align-items: center; justify-content: center;
-  font-weight: 800;
+  font-size: 0.78rem;
   border: 2px solid #000000;
+  flex-shrink: 0;
 }
-/* Number-key play hint -- bottom-left, mirrors the corner badges above it */
-.card .keybind {
-  position: absolute;
-  bottom: -10px; left: -10px;
+.badge.wide { font-size: 0.62rem; }
+.badge-cost {
+  position: absolute; top: -10px; left: -10px;
+  background: var(--cost); color: #ffffff;
+  border-color: #ffffff;
+}
+/* Gold cost badge (High Roller cards) -- mirrors badge-cost but on the opposite corner */
+.badge-goldcost {
+  position: absolute; top: -10px; right: -10px;
+  background: var(--gold); color: #000000;
+}
+/* Number-key play hint -- bottom-left, mirrors the corner badges above it. Hand-only. */
+.badge-key {
+  position: absolute; bottom: -10px; left: -10px;
   width: 24px; height: 24px;
-  background: #ffffff;
-  color: #000000;
-  border-radius: 50%;
-  display: flex; align-items: center; justify-content: center;
-  font-weight: 800;
-  font-size: 0.8rem;
-  border: 2px solid #000000;
+  background: #ffffff; color: #000000;
+  font-size: 0.7rem;
 }
-.card .name { font-weight: 700; font-size: 0.95rem; margin-top: 8px; }
-.card .desc { font-size: 0.8rem; line-height: 1.25; }
+.badge-atk   { background: var(--boss);  color: #ffffff; border-color: #ffffff; }
+.badge-block { background: var(--block); color: #ffffff; border-color: #ffffff; }
+
+.stat-badges {
+  display: flex;
+  gap: 6px;
+  margin: 3px 0 2px;
+}
+
+/* Text is always white (see .card { color: var(--text) }), which now sits on a near-black
+   card fill regardless of type, so contrast is solid without needing per-type overrides. */
+.card .type-label {
+  font-size: 0.62rem;
+  letter-spacing: 1.5px;
+  text-transform: uppercase;
+  font-weight: 700;
+  opacity: 0.85;
+  margin-top: 10px;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.65);
+}
+.card .name {
+  font-weight: 700;
+  font-size: 0.95rem;
+  margin-top: 1px;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.65);
+}
+.card .desc {
+  font-size: 0.78rem;
+  line-height: 1.25;
+  margin-top: 2px;
+  overflow: hidden;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 6;
+  word-break: break-word;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.65);
+}
 
 .combat-log {
   margin-top: 10px;
@@ -262,13 +300,37 @@ body {
   padding: 14px;
   margin-bottom: 14px;
 }
-.market-section h3 { margin-top: 0; color: var(--text); }
-.market-cards { display: flex; gap: 12px; flex-wrap: wrap; }
-.market-card {
-  width: 140px;
+.market-section h3 { margin-top: 0; color: var(--text); display: flex; align-items: center; gap: 14px; }
+.btn-reroll { font-size: 0.75rem; padding: 5px 10px; box-shadow: 2px 2px 0 #ffffff; }
+.btn-reroll:hover:not(:disabled) { box-shadow: 1px 1px 0 #ffffff; }
+.market-cards { display: flex; gap: 16px; flex-wrap: wrap; align-items: flex-start; }
+
+/* A shop offer (card or trinket) is the card/box itself plus its price sitting BELOW it,
+   as its own element rather than baked into the card box -- .shop-slot is just the column
+   that holds the two stacked. */
+.shop-slot { display: flex; flex-direction: column; align-items: center; gap: 8px; }
+.shop-slot.owned { opacity: 0.45; pointer-events: none; }
+.shop-slot.cant-afford .card,
+.shop-slot.cant-afford .market-card.trinket { opacity: 0.55; }
+.shop-price {
+  font-weight: 800;
+  background: #000000;
+  color: #ffffff;
+  border: 2px solid #ffffff;
+  padding: 4px 10px;
+  min-width: 56px;
+  text-align: center;
+}
+
+/* Card offers reuse the exact same .card face as the hand (see badge/type-label/desc rules
+   above) so a card looks identical whether you're buying it or holding it -- only the
+   cursor changes, since there's nothing to drag in the shop. */
+.card.shop-card { cursor: pointer; }
+
+.market-card.trinket {
+  width: 152px;
   border-radius: 0;
   padding: 10px;
-  color: #ffffff;
   cursor: pointer;
   border: 2px solid #ffffff;
   box-shadow: 4px 4px 0 #ffffff;
@@ -277,19 +339,8 @@ body {
   gap: 6px;
   transition: transform 0.08s ease, box-shadow 0.08s ease;
 }
-.market-card:hover { transform: translate(-3px, -3px); box-shadow: 7px 7px 0 #ffffff; }
-.market-card .price {
-  margin-top: auto;
-  font-weight: 800;
-  background: #000000;
-  color: #ffffff;
-  border: 2px solid #ffffff;
-  padding: 3px 6px;
-  text-align: center;
-}
-.market-card.owned { opacity: 0.45; cursor: not-allowed; }
-.market-card.owned:hover { transform: none; box-shadow: 4px 4px 0 #ffffff; }
-.market-card.cant-afford { opacity: 0.55; }
+.market-card.trinket:hover { transform: translate(-3px, -3px); box-shadow: 7px 7px 0 #ffffff; }
+.market-card.trinket .name { font-weight: 700; }
 .services .btn { display: block; margin-bottom: 8px; width: 100%; text-align: left; }
 
 /* Dice / coin roll overlay (High Roller cards) */
