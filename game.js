@@ -95,7 +95,7 @@ const CARD_LIBRARY = {
   },
   crackTheVault: { key: 'crackTheVault', name: 'Crack the Vault', type: 'loot', cost: 3, gold: 15, desc: 'Gain 15 gold.', price: 45 },
   protectionRacket: {
-    key: 'protectionRacket', name: 'Protection Racket', type: 'loot', cost: 1, goldPerTurn: 3,
+    key: 'protectionRacket', name: 'Kickback', type: 'loot', cost: 1, goldPerTurn: 3,
     desc: 'Gain 3 gold at the start of each turn this combat.',
     price: 50,
     onPlay(card) {
@@ -104,9 +104,9 @@ const CARD_LIBRARY = {
       // registers its own listener, so copies stack -- exactly how Sore Loser behaved.
       addStatus('turnStart', 'combat', () => {
         const g = gainGold(card.goldPerTurn);
-        logMsg(`Protection Racket: collected ${g} gold.`);
+        logMsg(`Kickback: collected ${g} gold.`);
       });
-      logMsg('Protection Racket: the arrangement starts paying next turn.');
+      logMsg('Kickback: the arrangement starts paying next turn.');
     },
   },
   bloodMoney: { key: 'bloodMoney', name: 'Blood Money', type: 'loot', cost: 0, selfDamage: 5, gold: 8, desc: 'Lose 5 HP. Gain 8 gold.', price: 35 },
@@ -127,14 +127,14 @@ const CARD_LIBRARY = {
   // attack branch only fires for 'attack' / isAttackToo), but it stops them double-dipping
   // if that type is ever changed.
   rollTheBones: {
-    key: 'rollTheBones', name: 'Roll the Bones', type: 'loot', cost: 0, deferredAttack: true,
+    key: 'rollTheBones', name: 'Bones', type: 'loot', cost: 0, deferredAttack: true,
     goldCost: 5, damagePerPip: 2,
     desc: 'Pay 5 gold. Roll a die: deal 2x the roll in damage.',
     price: 0,
     onPlay(card) {
       rollDie(6, (roll) => {
         const { damage, mult } = resolveAttackHit(roll * card.damagePerPip);
-        logMsg(`Roll the Bones: rolled a ${roll}, dealt ${damage} damage.`);
+        logMsg(`Bones: rolled a ${roll}, dealt ${damage} damage.`);
         if (mult > 1.001) showComboPopup(`ATK x${mult.toFixed(2)}!`);
         renderCombat();
         checkCombatEnd();
@@ -142,7 +142,7 @@ const CARD_LIBRARY = {
     },
   },
   doubleOrNothing: {
-    key: 'doubleOrNothing', name: 'Double or Nothing', type: 'loot', cost: 0, deferredAttack: true,
+    key: 'doubleOrNothing', name: 'Double Up', type: 'loot', cost: 0, deferredAttack: true,
     goldCost: 5, winDamage: 15,
     desc: 'Pay 5 gold. Coin flip: heads deals 15 damage, tails nothing.',
     price: 0,
@@ -150,13 +150,13 @@ const CARD_LIBRARY = {
       flipCoin((heads) => {
         if (heads) {
           const { damage, mult } = resolveAttackHit(card.winDamage);
-          logMsg(`Double or Nothing: heads! Dealt ${damage} damage.`);
+          logMsg(`Double Up: heads! Dealt ${damage} damage.`);
           if (mult > 1.001) showComboPopup(`ATK x${mult.toFixed(2)}!`);
         } else {
           // Tails matches Glass Cannon's miss: resolveAttackHit is never called, so no
           // damage, no turnDamageDealt, and no turnAttackCount increment -- a whiff must
           // not inflate the combo for cards played after it.
-          logMsg('Double or Nothing: tails. Nothing happens.');
+          logMsg('Double Up: tails. Nothing happens.');
         }
         resolveGoldCardOutcome(card, heads);
         renderCombat();
@@ -922,10 +922,58 @@ function cardDescText(card) {
   return card.desc;
 }
 
-// ---------- Card badges (the colored circles showing cost / hotkey / attack / block) ----------
+// ---------- Card sprites (pixel art) ----------
+// Each run is [col, row, widthCells, heightCells, ink] on a 32x20 grid. Ink 'C' resolves to
+// the card's type color, 'W'/'K'/'R' are fixed white/black/red. Keyed by CARD_LIBRARY key --
+// a missing entry just renders an empty grid rather than throwing (see spriteSVG below).
+const GRID_W = 32, GRID_H = 20;
+const SPRITES = {
+strike:[[25,0,1,1,'W'],[24,1,1,1,'W'],[23,2,1,1,'W'],[22,3,1,1,'W'],[21,4,1,1,'W'],[20,5,1,1,'W'],[19,6,1,1,'W'],[18,7,1,1,'W'],[17,8,1,1,'W'],[16,9,1,1,'W'],[15,10,1,1,'W'],[14,11,1,1,'W'],[13,12,1,1,'W'],[12,13,1,1,'W'],[9,14,6,1,'W'],[10,19,4,1,'W'],[24,0,1,1,'C'],[23,1,1,1,'C'],[22,2,1,1,'C'],[21,3,1,1,'C'],[20,4,1,1,'C'],[19,5,1,1,'C'],[18,6,1,1,'C'],[17,7,1,1,'C'],[16,8,1,1,'C'],[15,9,1,1,'C'],[14,10,1,1,'C'],[13,11,1,1,'C'],[12,12,1,1,'C'],[11,13,1,1,'C'],[11,15,2,4,'C']],
+quickStab:[[21,4,1,1,'W'],[20,5,1,1,'W'],[19,6,1,1,'W'],[18,7,1,1,'W'],[17,8,1,1,'W'],[16,9,1,1,'W'],[15,10,1,1,'W'],[14,11,1,1,'W'],[13,12,1,1,'W'],[10,13,6,1,'W'],[11,17,4,1,'W'],[20,4,1,1,'C'],[19,5,1,1,'C'],[18,6,1,1,'C'],[17,7,1,1,'C'],[16,8,1,1,'C'],[15,9,1,1,'C'],[14,10,1,1,'C'],[13,11,1,1,'C'],[12,12,1,1,'C'],[12,14,2,3,'C'],[2,2,6,1,'C'],[1,6,7,1,'C'],[2,10,6,1,'C']],
+comboStrike:[[6,12,3,7,'C'],[13,8,3,11,'C'],[20,4,3,15,'C'],[6,11,3,1,'W'],[13,7,3,1,'W'],[20,3,3,1,'W']],
+twinBlades:[[6,0,1,1,'W'],[7,1,1,1,'W'],[8,2,1,1,'W'],[9,3,1,1,'W'],[10,4,1,1,'W'],[11,5,1,1,'W'],[12,6,1,1,'W'],[13,7,1,1,'W'],[14,8,1,1,'W'],[15,9,1,1,'W'],[16,10,1,1,'W'],[17,11,1,1,'W'],[18,12,1,1,'W'],[19,13,1,1,'W'],[25,0,1,1,'W'],[24,1,1,1,'W'],[23,2,1,1,'W'],[22,3,1,1,'W'],[21,4,1,1,'W'],[20,5,1,1,'W'],[19,6,1,1,'W'],[18,7,1,1,'W'],[17,8,1,1,'W'],[16,9,1,1,'W'],[15,10,1,1,'W'],[14,11,1,1,'W'],[13,12,1,1,'W'],[12,13,1,1,'W'],[17,14,6,1,'W'],[9,14,6,1,'W'],[18,19,4,1,'W'],[10,19,4,1,'W'],[7,0,1,1,'C'],[8,1,1,1,'C'],[9,2,1,1,'C'],[10,3,1,1,'C'],[11,4,1,1,'C'],[12,5,1,1,'C'],[13,6,1,1,'C'],[14,7,1,1,'C'],[15,8,1,1,'C'],[16,9,1,1,'C'],[17,10,1,1,'C'],[18,11,1,1,'C'],[19,12,1,1,'C'],[20,13,1,1,'C'],[24,0,1,1,'C'],[23,1,1,1,'C'],[22,2,1,1,'C'],[21,3,1,1,'C'],[20,4,1,1,'C'],[19,5,1,1,'C'],[18,6,1,1,'C'],[17,7,1,1,'C'],[16,8,1,1,'C'],[15,9,1,1,'C'],[14,10,1,1,'C'],[13,11,1,1,'C'],[12,12,1,1,'C'],[11,13,1,1,'C'],[19,15,2,4,'C'],[11,15,2,4,'C']],
+thousandCuts:[[3,8,2,1,'C'],[4,9,2,1,'C'],[5,10,2,1,'C'],[6,11,2,1,'C'],[9,8,2,1,'C'],[10,9,2,1,'C'],[11,10,2,1,'C'],[12,11,2,1,'C'],[15,8,2,1,'C'],[16,9,2,1,'C'],[17,10,2,1,'C'],[18,11,2,1,'C'],[21,8,2,1,'C'],[22,9,2,1,'C'],[23,10,2,1,'C'],[24,11,2,1,'C'],[27,8,2,1,'C'],[28,9,2,1,'C'],[29,10,2,1,'C'],[30,11,2,1,'C'],[3,7,2,1,'W'],[9,7,2,1,'W'],[15,7,2,1,'W'],[21,7,2,1,'W'],[27,7,2,1,'W']],
+heavyStrike:[[9,3,15,1,'W'],[9,4,15,6,'C'],[15,10,3,10,'W'],[11,6,2,2,'K'],[20,6,2,2,'K']],
+glassCannon:[[15,6,2,1,'C'],[14,7,4,1,'C'],[13,8,6,1,'C'],[12,9,8,2,'C'],[13,11,6,1,'C'],[14,12,4,1,'C'],[15,13,2,1,'C'],[11,5,1,1,'W'],[10,4,1,1,'W'],[9,3,1,1,'W'],[20,5,1,1,'W'],[21,4,1,1,'W'],[22,3,1,1,'W'],[11,14,1,1,'W'],[10,15,1,1,'W'],[9,16,1,1,'W'],[20,14,1,1,'W'],[21,15,1,1,'W'],[22,16,1,1,'W']],
+guard:[[11,3,10,1,'W'],[11,4,10,6,'C'],[12,10,8,2,'C'],[13,12,6,2,'C'],[14,14,4,1,'C'],[15,15,2,1,'C'],[11,4,1,6,'W'],[20,4,1,6,'W']],
+brace:[[4,12,24,1,'W'],[4,13,24,3,'C'],[7,16,2,3,'C'],[23,16,2,3,'C']],
+stonewall:[[4,5,24,1,'W'],[4,6,24,12,'C'],[4,9,24,1,'K'],[4,13,24,1,'K'],[11,6,1,3,'K'],[19,6,1,3,'K'],[7,10,1,3,'K'],[15,10,1,3,'K'],[23,10,1,3,'K'],[11,14,1,4,'K'],[19,14,1,4,'K']],
+shieldWall:[[3,5,8,1,'W'],[12,5,8,1,'W'],[21,5,8,1,'W'],[3,6,8,5,'C'],[4,11,6,2,'C'],[5,13,4,1,'C'],[6,14,2,1,'C'],[12,6,8,5,'C'],[13,11,6,2,'C'],[14,13,4,1,'C'],[15,14,2,1,'C'],[21,6,8,5,'C'],[22,11,6,2,'C'],[23,13,4,1,'C'],[24,14,2,1,'C']],
+bulwark:[[2,6,6,1,'W'],[9,6,6,1,'W'],[16,6,6,1,'W'],[23,6,6,1,'W'],[2,7,6,4,'C'],[3,11,4,2,'C'],[4,13,2,1,'C'],[9,7,6,4,'C'],[10,11,4,2,'C'],[11,13,2,1,'C'],[16,7,6,4,'C'],[17,11,4,2,'C'],[18,13,2,1,'C'],[23,7,6,4,'C'],[24,11,4,2,'C'],[25,13,2,1,'C']],
+shieldBash:[[5,4,10,1,'W'],[5,5,10,6,'C'],[6,11,8,2,'C'],[7,13,6,2,'C'],[8,15,4,1,'C'],[9,16,2,1,'C'],[19,5,2,1,'R'],[22,3,2,1,'R'],[19,9,3,1,'R'],[24,9,3,1,'R'],[19,14,2,1,'R'],[22,16,2,1,'R']],
+brambleGuard:[[10,5,12,1,'W'],[10,6,12,6,'C'],[11,12,10,2,'C'],[12,14,8,1,'C'],[14,15,4,1,'C'],[8,7,2,1,'W'],[8,10,2,1,'W'],[9,13,2,1,'W'],[22,7,2,1,'W'],[22,10,2,1,'W'],[21,13,2,1,'W'],[13,3,1,2,'W'],[18,3,1,2,'W']],
+armor:[[8,0,16,1,'W'],[8,1,1,8,'W'],[23,1,1,8,'W'],[9,1,14,8,'C'],[9,9,14,3,'C'],[10,12,12,2,'C'],[12,14,8,1,'C'],[13,15,6,1,'C'],[14,16,4,1,'C'],[15,17,2,1,'C'],[15,3,2,11,'K'],[11,6,10,2,'K']],
+treasureGrab:[[11,14,10,3,'C'],[10,10,12,3,'C'],[12,6,8,3,'C'],[11,14,10,1,'W'],[10,10,12,1,'W'],[12,6,8,1,'W'],[15,11,2,1,'K'],[15,15,2,1,'K']],
+rollTheBones:[[8,0,20,20,'C'],[8,0,20,1,'W'],[8,0,1,20,'W'],[11,3,3,3,'K'],[22,3,3,3,'K'],[16,8,3,3,'K'],[11,14,3,3,'K'],[22,14,3,3,'K']],
+doubleOrNothing:[[12,3,8,1,'C'],[10,4,12,1,'C'],[9,5,14,10,'C'],[10,15,12,1,'C'],[12,16,8,1,'C'],[12,3,8,1,'W'],[9,5,1,10,'W'],[12,7,2,6,'K'],[18,7,2,6,'K'],[14,9,4,2,'K']],
+skim:[[5,13,5,4,'C'],[13,13,5,4,'C'],[21,13,5,4,'C'],[5,13,5,1,'W'],[13,13,5,1,'W'],[21,13,5,1,'W'],[4,8,1,1,'W'],[6,6,1,1,'W'],[9,5,1,1,'W'],[13,4,1,1,'W'],[17,4,1,1,'W'],[21,5,1,1,'W'],[24,6,1,1,'W'],[26,7,1,1,'W'],[26,8,1,1,'W'],[27,8,1,1,'W']],
+bloodMoney:[[12,2,8,1,'C'],[10,3,12,1,'C'],[9,4,14,7,'C'],[10,11,12,1,'C'],[12,12,8,1,'C'],[12,2,8,1,'W'],[9,4,1,7,'W'],[15,14,2,1,'R'],[14,15,4,1,'R'],[13,16,6,2,'R'],[14,18,4,1,'R']],
+shakedown:[[14,2,4,1,'W'],[13,3,6,1,'C'],[11,4,10,2,'C'],[10,6,12,10,'C'],[11,16,10,1,'C'],[13,17,6,1,'C'],[10,8,12,2,'K'],[15,11,2,4,'K'],[13,12,6,1,'K']],
+protectionRacket:[[13,8,6,1,'C'],[11,9,10,6,'C'],[13,15,6,1,'C'],[13,8,6,1,'W'],[11,9,1,6,'W'],[8,6,1,1,'W'],[9,4,1,1,'W'],[11,3,2,1,'W'],[14,2,4,1,'W'],[19,3,2,1,'W'],[22,4,1,1,'W'],[23,6,1,1,'W'],[22,5,3,1,'W'],[24,6,1,2,'W'],[15,10,2,4,'K']],
+crackTheVault:[[7,1,18,18,'C'],[9,3,14,14,'K'],[14,7,6,6,'C'],[7,1,18,1,'W'],[16,5,2,2,'W'],[16,13,2,2,'W'],[11,9,3,2,'W'],[20,9,3,2,'W']],
+gather:[[4,6,9,12,'C'],[11,4,9,14,'C'],[18,6,9,12,'C'],[4,6,9,1,'W'],[11,4,9,1,'W'],[18,6,9,1,'W'],[10,4,1,14,'W'],[17,4,1,14,'W']],
+spark:[[16,2,3,1,'C'],[15,3,3,1,'C'],[14,4,3,1,'C'],[13,5,3,1,'C'],[12,6,3,1,'C'],[11,7,12,2,'C'],[18,9,3,1,'C'],[17,10,3,1,'C'],[16,11,3,1,'C'],[15,12,3,1,'C'],[14,13,3,1,'C'],[13,14,3,1,'C'],[16,2,3,1,'W'],[11,7,12,1,'W']],
+overdraw:[[3,5,10,13,'C'],[3,5,10,1,'W'],[18,3,2,5,'W'],[16,6,6,1,'W'],[17,5,4,1,'W'],[25,10,2,5,'W'],[23,11,6,1,'W'],[24,12,4,1,'W'],[18,1,2,2,'C'],[25,15,2,2,'C']],
+loadedDiceCard:[[9,4,16,15,'C'],[9,4,16,1,'W'],[9,4,1,15,'W'],[12,7,3,2,'K'],[19,7,3,2,'K'],[12,10,3,2,'K'],[19,10,3,2,'K'],[12,14,3,2,'K'],[19,14,3,2,'K'],[26,1,1,3,'W'],[25,2,3,1,'W']],
+sidestep:[[4,11,6,7,'C'],[19,3,6,7,'C'],[4,11,6,1,'W'],[19,3,6,1,'W'],[11,10,2,1,'W'],[13,9,2,1,'W'],[15,8,2,1,'W'],[17,7,2,1,'W'],[17,5,1,3,'W'],[15,7,3,1,'W']],
+overcharge:[[5,5,20,12,'C'],[25,8,3,6,'W'],[5,5,20,1,'W'],[16,7,3,1,'K'],[15,8,3,1,'K'],[14,9,3,1,'K'],[12,10,8,1,'K'],[15,11,3,1,'K'],[14,12,3,1,'K'],[13,13,3,1,'K']],
+burnout:[[15,2,2,1,'C'],[14,3,4,1,'C'],[13,4,6,2,'C'],[12,6,8,2,'C'],[11,8,10,8,'C'],[12,16,8,2,'C'],[15,2,2,1,'W'],[14,10,4,6,'W'],[13,12,6,3,'W']]
+};
+const TYPE_INK={attack:'#ff0000',block:'#0000ff',loot:'#ffff00',skill:'#a855f7'};
+const GRID_OPACITY={attack:.35,block:.5,loot:.3,skill:.4};
+
+function spriteSVG(key,type){
+  const runs=SPRITES[key]||[]; const ink=TYPE_INK[type]||'#ffffff';
+  const pick=c=>c==='C'?ink:c==='W'?'#ffffff':c==='K'?'#000000':'#ff0000';
+  let g='';
+  for(const [x,y,w,h,c] of runs) g+=`<rect x="${x}" y="${y}" width="${w}" height="${h}" fill="${pick(c)}"/>`;
+  return `<svg viewBox="0 0 ${GRID_W} ${GRID_H}" preserveAspectRatio="xMidYMid meet" xmlns="http://www.w3.org/2000/svg"><defs><pattern id="pg-${key}" width="1" height="1" patternUnits="userSpaceOnUse"><path d="M1 0 L0 0 0 1" fill="none" stroke="${ink}" stroke-width="0.06" opacity="${GRID_OPACITY[type]||.35}"/></pattern></defs><rect width="${GRID_W}" height="${GRID_H}" fill="url(#pg-${key})"/>${g}</svg>`;
+}
+
+// ---------- Card badges (the colored circles showing cost / hotkey) ----------
 // One shared readout so a hand card and its shop listing always agree on what a card does --
 // cardAttackDisplay/cardBlockDisplay are the single source of truth for "how much damage or
-// block does this number actually represent", used by both cornerBadges/statBadges below.
+// block does this number actually represent", used by cornerBadges and the type-line stat.
 
 // Not every attack card carries a flat baseDamage -- Shield Bash derives its hit from the
 // block it just gained, and Double or Nothing has a flat payout under a different field
@@ -951,31 +999,29 @@ function cornerBadges(card, keybind) {
   `;
 }
 
-// Attack/block badges, laid out inline (not pinned) so they sit in their own row on the
-// card face instead of fighting the corner badges for space.
-function statBadges(card) {
+// The type line's right-hand stat -- folds what used to be the separate attack/block badges
+// into the same band as the card's type. Shield Bash is the only card with both an attack
+// and a block value, shown as "atk/block"; cards with neither (Skim, Gather, Protection
+// Racket, ...) show nothing rather than a placeholder.
+function typeLineStat(card) {
   const hits = card.hits || 1;
   const atk = cardAttackDisplay(card);
   const block = cardBlockDisplay(card);
-  if (atk == null && block == null) return '';
-  const atkText = atk == null ? null : (hits > 1 ? `${atk}×${hits}` : `${atk}`);
-  const blockText = block == null ? null : (hits > 1 ? `${block}×${hits}` : `${block}`);
-  return `
-    <div class="stat-badges">
-      ${atkText != null ? `<div class="badge badge-atk${atkText.length > 2 ? ' wide' : ''}" title="Attack damage">${atkText}</div>` : ''}
-      ${blockText != null ? `<div class="badge badge-block${blockText.length > 2 ? ' wide' : ''}" title="Block">${blockText}</div>` : ''}
-    </div>
-  `;
+  const atkText = atk == null ? null : (hits > 1 ? `${atk}x${hits}` : `${atk}`);
+  const blockText = block == null ? null : (hits > 1 ? `${block}x${hits}` : `${block}`);
+  if (atkText != null && blockText != null) return `${atkText}/${blockText}`;
+  return atkText != null ? atkText : (blockText != null ? blockText : '');
 }
 
-// Full card face -- badges plus the text body. Shared by the hand, the shop, and the
-// remove screen so a card looks identical everywhere it's shown.
+// Full card face -- badges, a framed art window, the type line, and the rules text. Shared
+// by the hand, the shop, and the remove screen so a card looks identical everywhere it's shown.
 function cardFaceHTML(card, keybind) {
   return `
     ${cornerBadges(card, keybind)}
-    <div class="type-label">${card.type}</div>
-    <div class="name">${card.name}</div>
-    ${statBadges(card)}
+    <div class="name${card.goldCost ? ' has-goldcost' : ''}">${card.name}</div>
+    <div class="name-rule"></div>
+    <div class="art">${spriteSVG(card.key, card.type)}</div>
+    <div class="typeline"><span>${card.type}</span><span class="stat">${typeLineStat(card)}</span></div>
     <div class="desc">${cardDescText(card)}</div>
   `;
 }
