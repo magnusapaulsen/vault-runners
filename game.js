@@ -752,6 +752,10 @@ function endTurn() {
 
 function checkCombatEnd() {
   const c = game.combat;
+  // Player-death is checked before boss-death on purpose: if both hit 0 HP on the same
+  // boss attack (e.g. a lethal hit landing the same turn Bramble Guard's retaliation
+  // finishes the boss), a mutual kill resolves as a LOSS, not a win. Don't reorder these
+  // two checks -- that would silently flip the mutual-kill ruling to a win.
   if (game.hp <= 0) {
     showScreen('screen-gameover');
     document.getElementById('gameover-text').textContent =
