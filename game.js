@@ -1704,8 +1704,17 @@ document.getElementById('btn-tuning-reset').onclick = resetTuningPanel;
 // Backtick toggles the panel from anywhere (start screen, combat, market, ...) -- a
 // separate listener from the existing combat hotkeys (Space / 1-9 / 0) further up this
 // file, which stay scoped to screen-combat. Backtick was unbound before this.
+//
+// Tests e.code, not e.key: on a Norwegian (and several other non-US) keyboard layout,
+// the physical key left of "1" is a dead key for accent composition, so keydown fires
+// with e.key === 'Dead' rather than a backtick character -- e.key would make this
+// unreachable on those layouts. e.code identifies the physical key position
+// ('Backquote') regardless of layout or dead-key behavior, so this works the same on
+// every keyboard. Guarded against Ctrl/Alt/Meta so an OS- or browser-level shortcut on
+// that same physical key doesn't also pop the panel open.
 document.addEventListener('keydown', (e) => {
-  if (e.key !== '`') return;
+  if (e.code !== 'Backquote') return;
+  if (e.ctrlKey || e.altKey || e.metaKey) return;
   e.preventDefault();
   toggleTuningPanel();
 });
