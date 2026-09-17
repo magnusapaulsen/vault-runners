@@ -19,46 +19,47 @@ function makeCard(def) {
 }
 
 const CARD_LIBRARY = {
-  strike: { key: 'strike', name: 'Strike', type: 'attack', cost: 1, baseDamage: 6, desc: 'Deal 6 damage.' },
-  guard: { key: 'guard', name: 'Guard', type: 'block', cost: 1, block: 5, desc: 'Gain 5 block.' },
-  treasureGrab: { key: 'treasureGrab', name: 'Treasure Grab', type: 'loot', cost: 1, gold: 4, desc: 'Gain 4 gold.' },
+  // ==================== ATTACK ====================
+  strike: { key: 'strike',           name: 'Strike',          type: 'attack', cost: 1, baseDamage: 6,                                                               desc: 'Deal 6 damage.' },
+  quickStab: { key: 'quickStab',        name: 'Quick Stab',      type: 'attack', cost: 1, baseDamage: 4,                          drawOnPlay: 1,                       price: 25, desc: 'Deal 4 damage. Draw 1 card.' },
+  comboStrike: { key: 'comboStrike',      name: 'Combo Strike',    type: 'attack', cost: 1, baseDamage: 4,           comboBonus: 3,                                      price: 40, desc: 'Deal 4 damage (+3 per attack played this turn).' },
+  twinBlades: { key: 'twinBlades',       name: 'Twin Blades',     type: 'attack', cost: 2, baseDamage: 8,  hits: 2,                                                     price: 45, desc: 'Deal 8 damage, 2 times.' },
+  heavyStrike: { key: 'heavyStrike',      name: 'Heavy Strike',    type: 'attack', cost: 3, baseDamage: 30,                                                              price: 70, desc: 'Deal 30 damage.' },
+  thousandCuts: { key: 'thousandCuts',     name: 'Thousand Cuts',   type: 'attack', cost: 2, baseDamage: 2,  hits: 5,                                                     price: 45, desc: 'Deal 2 damage, 5 times.' },
 
-  quickStab: { key: 'quickStab', name: 'Quick Stab', type: 'attack', cost: 1, baseDamage: 4, drawOnPlay: 1, desc: 'Deal 4 damage. Draw 1 card.', price: 25 },
-  shieldWall: { key: 'shieldWall', name: 'Shield Wall', type: 'block', cost: 2, block: 14, desc: 'Gain 14 block.', price: 30 },
-  sidestep: { key: 'sidestep', name: 'Sidestep', type: 'skill', cost: 0, block: 2, drawOnPlay: 2, desc: 'Gain 2 block. Draw 2 cards.', price: 45 },
-  comboStrike: { key: 'comboStrike', name: 'Combo Strike', type: 'attack', cost: 1, baseDamage: 4, comboBonus: 3, desc: 'Deal 4 damage (+3 per attack played this turn).', price: 40 },
-  twinBlades: { key: 'twinBlades', name: 'Twin Blades', type: 'attack', cost: 2, baseDamage: 8, hits: 2, desc: 'Deal 8 damage, 2 times.', price: 45 },
-  heavyStrike: { key: 'heavyStrike', name: 'Heavy Strike', type: 'attack', cost: 3, baseDamage: 30, desc: 'Deal 30 damage.', price: 70 },
-  gather: { key: 'gather', name: 'Gather', type: 'skill', cost: 0, drawOnPlay:3, desc: 'Draw 3 cards.', price: 25},
-  overdraw: { key: 'overdraw', name: 'Overdraw', type: 'skill', cost: 0, discardCost: 2, drawOnPlay: 4, desc: 'Discard 2 cards. Draw 4 cards.', price: 40 },
-  spark: { key: 'spark', name: 'Spark', type: 'skill', cost: 0, energyGain: 1, desc: 'Gain 1 energy.', price: 30 },
-  overcharge: { key: 'overcharge', name: 'Overcharge', type: 'skill', cost: 0, discardCost: 1, energyGain: 1, desc: 'Discard 1 card. Gain 1 energy.', price: 45 },
+  // Shares deferredAttack/combo-counting mechanics with the High Roller loot cards
+  // (see the comment above rollTheBones in the LOOT group) even though this one is a
+  // straight attack card, not a gold-cost gamble.
+  glassCannon: { key: 'glassCannon',      name: 'Glass Cannon',    type: 'attack', cost: 0, baseDamage: 30,                                        deferredAttack: true, price: 50, desc: 'Roll a die: 4+ deals 30 damage, else this card is destroyed.',
+    onPlay(card) {
+      rollDie(6, (roll) => {
+        if (roll >= 4) {
+          const { damage, mult } = resolveAttackHit(card.baseDamage);
+          logMsg(`Glass Cannon: rolled ${roll}, hit for ${damage} damage.`);
+          if (mult > 1.001) showComboPopup(`ATK x${mult.toFixed(2)}!`);
+        } else {
+          logMsg(`Glass Cannon: rolled ${roll}, misses completely.`);
+          trashCard(card);
+        }
+        renderCombat();
+        checkCombatEnd();
+      });
+    },
+  },
 
-  // ---- Combo Flurry (Red + Purple/skill) ----
-  thousandCuts: { key: 'thousandCuts', name: 'Thousand Cuts', type: 'attack', cost: 2, baseDamage: 2, hits: 5, desc: 'Deal 2 damage, 5 times.', price: 45 },
-  armor: { key: 'armor', name: 'Armor', type: 'block', cost: 3, block: 24, desc: 'Gain 24 block.', price: 40 },
-
-  // ---- Overheat Engine (Purple/skill) ----
-  burnout: { key: 'burnout', name: 'Burnout', type: 'skill', cost: 0, energyGain: 3, drawOnPlay: 3, exhaustOnPlay: true, desc: 'Gain 3 energy. Draw 3 cards. Exhausts after use.', price: 50 },
-
-  // ---- The Phalanx (block / retaliation) ----
+  // ==================== BLOCK ====================
   // Block mirrors attack: turnBlockCount ticks once per hit, so `hits` buys triggers here
   // the same way it does on the attack side, and blockComboBonus is the block twin of
   // comboBonus. Remember block does not carry over -- c.block is wiped every endTurn --
   // so everything here is single-turn value.
-  brace: { key: 'brace', name: 'Brace', type: 'block', cost: 0, block: 2, desc: 'Gain 2 block.', price: 25 },
-  bulwark: { key: 'bulwark', name: 'Bulwark', type: 'block', cost: 2, block: 3, hits: 4, desc: 'Gain 3 block, 4 times.', price: 50 },
-  stonewall: { key: 'stonewall', name: 'Stonewall', type: 'block', cost: 1, block: 4, blockComboBonus: 4, desc: 'Gain 4 block (+4 per block played this turn).', price: 40 },
-  shieldBash: {
-    key: 'shieldBash', name: 'Shield Bash', type: 'block', cost: 2, block: 8,
-    isAttackToo: true, damageFromBlockPercent: 1.0,
-    desc: 'Gain 8 block, then deal damage equal to your block.',
-    price: 55,
-  },
-  brambleGuard: {
-    key: 'brambleGuard', name: 'Bramble Guard', type: 'block', cost: 2, block: 10, retaliateDamage: 5,
-    desc: 'Gain 10 block. Retaliate for 5 damage when attacked this combat.',
-    price: 50,
+  guard: { key: 'guard',            name: 'Guard',           type: 'block',  cost: 1, block: 5,                                                                                                   desc: 'Gain 5 block.' },
+  shieldWall: { key: 'shieldWall',       name: 'Shield Wall',     type: 'block',  cost: 2, block: 14,                                                                                                  price: 30, desc: 'Gain 14 block.' },
+  armor: { key: 'armor',            name: 'Armor',           type: 'block',  cost: 3, block: 24,                                                                                                  price: 40, desc: 'Gain 24 block.' },
+  brace: { key: 'brace',            name: 'Brace',           type: 'block',  cost: 0, block: 2,                                                                                                   price: 25, desc: 'Gain 2 block.' },
+  bulwark: { key: 'bulwark',          name: 'Bulwark',         type: 'block',  cost: 2, block: 3,  hits: 4,                                                                                         price: 50, desc: 'Gain 3 block, 4 times.' },
+  stonewall: { key: 'stonewall',        name: 'Stonewall',       type: 'block',  cost: 1, block: 4,           blockComboBonus: 4,                                                                     price: 40, desc: 'Gain 4 block (+4 per block played this turn).' },
+  shieldBash: { key: 'shieldBash',       name: 'Shield Bash',     type: 'block',  cost: 2, block: 8,                               damageFromBlockPercent: 1.0,                     isAttackToo: true, price: 55, desc: 'Gain 8 block, then deal damage equal to your block.' },
+  brambleGuard: { key: 'brambleGuard',     name: 'Bramble Guard',   type: 'block',  cost: 2, block: 10,                                                           retaliateDamage: 5,                    price: 50, desc: 'Gain 10 block. Retaliate for 5 damage when attacked this combat.',
     onPlay(card) {
       // Combat-scoped, unlike the old turn-scoped Spiked Armor: it survives
       // clearTurnStatuses() and keeps retaliating every turn until startCombat() replaces
@@ -73,16 +74,14 @@ const CARD_LIBRARY = {
     },
   },
 
-  // ---- The Gold Rush (loot / economy) ----
+  // ==================== LOOT ====================
   // Pure economy: none of these deal damage or grant block, so each one trades tempo in
   // the current fight for buying power at the next market. Every gain routes through
   // gainGold() so the Gold Loot trinket applies -- note that gainGold rounds, so small
-  // per-tick amounts (Skim at 1-2, Protection Racket at 3) can round the bonus away.
-  shakedown: { key: 'shakedown', name: 'Shakedown', type: 'loot', cost: 1, gold: 5, desc: 'Gain 5 gold.', price: 30 },
-  skim: {
-    key: 'skim', name: 'Skim', type: 'loot', cost: 0, goldPerAttack: 1,
-    desc: 'Gain 1 gold per attack played this turn.',
-    price: 35,
+  // per-tick amounts (Skim at 1-2, Kickback at 3) can round the bonus away.
+  treasureGrab: { key: 'treasureGrab',     name: 'Treasure Grab',   type: 'loot',   cost: 1, gold: 4,                                                                                                                      desc: 'Gain 4 gold.' },
+  shakedown: { key: 'shakedown',        name: 'Shakedown',       type: 'loot',   cost: 1, gold: 5,                                                                                                                      price: 30, desc: 'Gain 5 gold.' },
+  skim: { key: 'skim',             name: 'Skim',            type: 'loot',   cost: 0,                        goldPerAttack: 1,                                                                                      price: 35, desc: 'Gain 1 gold per attack played this turn.',
     onPlay(card) {
       const n = game.combat.turnAttackCount;
       if (n <= 0) {
@@ -93,11 +92,8 @@ const CARD_LIBRARY = {
       logMsg(`Skim: ${n} attack(s) this turn, gained ${g} gold.`);
     },
   },
-  crackTheVault: { key: 'crackTheVault', name: 'Crack the Vault', type: 'loot', cost: 3, gold: 15, desc: 'Gain 15 gold.', price: 45 },
-  protectionRacket: {
-    key: 'protectionRacket', name: 'Kickback', type: 'loot', cost: 1, goldPerTurn: 3,
-    desc: 'Gain 3 gold at the start of each turn this combat.',
-    price: 50,
+  crackTheVault: { key: 'crackTheVault',    name: 'Crack the Vault', type: 'loot',   cost: 3, gold: 15,                                                                                                                     price: 45, desc: 'Gain 15 gold.' },
+  protectionRacket: { key: 'protectionRacket', name: 'Kickback',        type: 'loot',   cost: 1,                                          goldPerTurn: 3,                                                                      price: 50, desc: 'Gain 3 gold at the start of each turn this combat.',
     onPlay(card) {
       // Combat-scoped, so it survives clearTurnStatuses() and keeps paying every turn until
       // startCombat() replaces the whole combat object at the next fight. Each copy played
@@ -109,28 +105,22 @@ const CARD_LIBRARY = {
       logMsg('Kickback: the arrangement starts paying next turn.');
     },
   },
-  bloodMoney: { key: 'bloodMoney', name: 'Blood Money', type: 'loot', cost: 0, selfDamage: 5, gold: 8, desc: 'Lose 5 HP. Gain 8 gold.', price: 35 },
+  bloodMoney: { key: 'bloodMoney',       name: 'Blood Money',     type: 'loot',   cost: 0, gold: 8,                                                 selfDamage: 5,                                                       price: 35, desc: 'Lose 5 HP. Gain 8 gold.' },
 
-  // ---- The High Roller (Gold, with cross-color support) ----
-  // Both gamble cards are free to acquire (price: 0) and free in energy (cost: 0), and
-  // charge gold per play (goldCost) instead. All the tunable numbers live on the card
-  // defs: goldCost is the per-play price, damagePerPip / winDamage are the payouts.
-  // Change them here; the desc strings directly below each one restate the same numbers
-  // and must be kept in sync by hand.
+  // Both gamble cards below are free to acquire (price: 0) and free in energy (cost: 0),
+  // and charge gold per play (goldCost) instead. All the tunable numbers live on the card
+  // defs: goldCost is the per-play price, damagePerPip / winDamage are the payouts. Change
+  // them here; the desc strings restate the same numbers and must be kept in sync by hand.
   //
   // Both COUNT FOR COMBO: the roll/flip decides the base damage and resolveAttackHit
   // scales it, so they increment turnAttackCount and take the multiplier exactly like any
-  // other attack. A failed gamble does not -- see the tails branch below.
+  // other attack. A failed gamble does not -- see the tails branch on Double Up below.
   //
   // They carry `deferredAttack` because they resolve their damage inside onPlay once the
   // animation settles. It is redundant while their type is 'loot' (playCard's automatic
   // attack branch only fires for 'attack' / isAttackToo), but it stops them double-dipping
-  // if that type is ever changed.
-  rollTheBones: {
-    key: 'rollTheBones', name: 'Bones', type: 'loot', cost: 0, deferredAttack: true,
-    goldCost: 5, damagePerPip: 2,
-    desc: 'Pay 5 gold. Roll a die: deal 2x the roll in damage.',
-    price: 0,
+  // if that type is ever changed. Glass Cannon (ATTACK group) shares this same mechanic.
+  rollTheBones: { key: 'rollTheBones',     name: 'Bones',           type: 'loot',   cost: 0,           goldCost: 5,                                                  damagePerPip: 2,                deferredAttack: true, price: 0, desc: 'Pay 5 gold. Roll a die: deal 2x the roll in damage.',
     onPlay(card) {
       rollDie(6, (roll) => {
         const { damage, mult } = resolveAttackHit(roll * card.damagePerPip);
@@ -141,11 +131,7 @@ const CARD_LIBRARY = {
       });
     },
   },
-  doubleOrNothing: {
-    key: 'doubleOrNothing', name: 'Double Up', type: 'loot', cost: 0, deferredAttack: true,
-    goldCost: 5, winDamage: 15,
-    desc: 'Pay 5 gold. Coin flip: heads deals 15 damage, tails nothing.',
-    price: 0,
+  doubleOrNothing: { key: 'doubleOrNothing',  name: 'Double Up',       type: 'loot',   cost: 0,           goldCost: 5,                                                                   winDamage: 15, deferredAttack: true, price: 0, desc: 'Pay 5 gold. Coin flip: heads deals 15 damage, tails nothing.',
     onPlay(card) {
       flipCoin((heads) => {
         if (heads) {
@@ -164,32 +150,19 @@ const CARD_LIBRARY = {
       });
     },
   },
-  glassCannon: {
-    key: 'glassCannon', name: 'Glass Cannon', type: 'attack', cost: 0, baseDamage: 30, deferredAttack: true,
-    desc: 'Roll a die: 4+ deals 30 damage, else this card is destroyed.',
-    price: 50,
-    onPlay(card) {
-      rollDie(6, (roll) => {
-        if (roll >= 4) {
-          const { damage, mult } = resolveAttackHit(card.baseDamage);
-          logMsg(`Glass Cannon: rolled ${roll}, hit for ${damage} damage.`);
-          if (mult > 1.001) showComboPopup(`ATK x${mult.toFixed(2)}!`);
-        } else {
-          logMsg(`Glass Cannon: rolled ${roll}, misses completely.`);
-          trashCard(card);
-        }
-        renderCombat();
-        checkCombatEnd();
-      });
-    },
-  },
+
+  // ==================== SKILL ====================
+  sidestep: { key: 'sidestep',         name: 'Sidestep',        type: 'skill',  cost: 0, block: 2,                drawOnPlay: 2,                                      price: 45, desc: 'Gain 2 block. Draw 2 cards.' },
+  gather: { key: 'gather',           name: 'Gather',          type: 'skill',  cost: 0,                          drawOnPlay: 3,                                      price: 25, desc: 'Draw 3 cards.' },
+  overdraw: { key: 'overdraw',         name: 'Overdraw',        type: 'skill',  cost: 0,                          drawOnPlay: 4, discardCost: 2,                      price: 40, desc: 'Discard 2 cards. Draw 4 cards.' },
+  spark: { key: 'spark',            name: 'Spark',           type: 'skill',  cost: 0,           energyGain: 1,                                                     price: 30, desc: 'Gain 1 energy.' },
+  overcharge: { key: 'overcharge',       name: 'Overcharge',      type: 'skill',  cost: 0,           energyGain: 1,                discardCost: 1,                      price: 45, desc: 'Discard 1 card. Gain 1 energy.' },
+  burnout: { key: 'burnout',          name: 'Burnout',         type: 'skill',  cost: 0,           energyGain: 3, drawOnPlay: 3,                 exhaustOnPlay: true, price: 50, desc: 'Gain 3 energy. Draw 3 cards. Exhausts after use.' },
+
   // Named "Loaded Dice" like the trinket, but a different thing (a played card, not a
   // passive) -- distinct key so the two don't collide, flagged to the user as a naming
   // overlap worth knowing about.
-  loadedDiceCard: {
-    key: 'loadedDiceCard', name: 'Loaded Dice', type: 'skill', cost: 0,
-    desc: 'Your next roll or flip this turn is guaranteed to hit its best outcome.',
-    price: 40,
+  loadedDiceCard: { key: 'loadedDiceCard',   name: 'Loaded Dice',     type: 'skill',  cost: 0,                                                                              price: 40, desc: 'Your next roll or flip this turn is guaranteed to hit its best outcome.',
     onPlay(card) { game.combat.forcedNextRoll = 'max'; },
   },
 };
