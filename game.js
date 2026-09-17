@@ -95,7 +95,7 @@ const CARD_LIBRARY = {
   },
   crackTheVault: { key: 'crackTheVault', name: 'Crack the Vault', type: 'loot', cost: 3, gold: 15, desc: 'Gain 15 gold.', price: 45 },
   protectionRacket: {
-    key: 'protectionRacket', name: 'Protection Racket', type: 'loot', cost: 1, goldPerTurn: 3,
+    key: 'protectionRacket', name: 'Kickback', type: 'loot', cost: 1, goldPerTurn: 3,
     desc: 'Gain 3 gold at the start of each turn this combat.',
     price: 50,
     onPlay(card) {
@@ -104,9 +104,9 @@ const CARD_LIBRARY = {
       // registers its own listener, so copies stack -- exactly how Sore Loser behaved.
       addStatus('turnStart', 'combat', () => {
         const g = gainGold(card.goldPerTurn);
-        logMsg(`Protection Racket: collected ${g} gold.`);
+        logMsg(`Kickback: collected ${g} gold.`);
       });
-      logMsg('Protection Racket: the arrangement starts paying next turn.');
+      logMsg('Kickback: the arrangement starts paying next turn.');
     },
   },
   bloodMoney: { key: 'bloodMoney', name: 'Blood Money', type: 'loot', cost: 0, selfDamage: 5, gold: 8, desc: 'Lose 5 HP. Gain 8 gold.', price: 35 },
@@ -127,14 +127,14 @@ const CARD_LIBRARY = {
   // attack branch only fires for 'attack' / isAttackToo), but it stops them double-dipping
   // if that type is ever changed.
   rollTheBones: {
-    key: 'rollTheBones', name: 'Roll the Bones', type: 'loot', cost: 0, deferredAttack: true,
+    key: 'rollTheBones', name: 'Bones', type: 'loot', cost: 0, deferredAttack: true,
     goldCost: 5, damagePerPip: 2,
     desc: 'Pay 5 gold. Roll a die: deal 2x the roll in damage.',
     price: 0,
     onPlay(card) {
       rollDie(6, (roll) => {
         const { damage, mult } = resolveAttackHit(roll * card.damagePerPip);
-        logMsg(`Roll the Bones: rolled a ${roll}, dealt ${damage} damage.`);
+        logMsg(`Bones: rolled a ${roll}, dealt ${damage} damage.`);
         if (mult > 1.001) showComboPopup(`ATK x${mult.toFixed(2)}!`);
         renderCombat();
         checkCombatEnd();
@@ -142,7 +142,7 @@ const CARD_LIBRARY = {
     },
   },
   doubleOrNothing: {
-    key: 'doubleOrNothing', name: 'Double or Nothing', type: 'loot', cost: 0, deferredAttack: true,
+    key: 'doubleOrNothing', name: 'Double Up', type: 'loot', cost: 0, deferredAttack: true,
     goldCost: 5, winDamage: 15,
     desc: 'Pay 5 gold. Coin flip: heads deals 15 damage, tails nothing.',
     price: 0,
@@ -150,13 +150,13 @@ const CARD_LIBRARY = {
       flipCoin((heads) => {
         if (heads) {
           const { damage, mult } = resolveAttackHit(card.winDamage);
-          logMsg(`Double or Nothing: heads! Dealt ${damage} damage.`);
+          logMsg(`Double Up: heads! Dealt ${damage} damage.`);
           if (mult > 1.001) showComboPopup(`ATK x${mult.toFixed(2)}!`);
         } else {
           // Tails matches Glass Cannon's miss: resolveAttackHit is never called, so no
           // damage, no turnDamageDealt, and no turnAttackCount increment -- a whiff must
           // not inflate the combo for cards played after it.
-          logMsg('Double or Nothing: tails. Nothing happens.');
+          logMsg('Double Up: tails. Nothing happens.');
         }
         resolveGoldCardOutcome(card, heads);
         renderCombat();
