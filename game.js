@@ -1014,7 +1014,7 @@ function typeLineStat(card) {
 function cardFaceHTML(card, keybind) {
   return `
     ${cornerBadges(card, keybind)}
-    <div class="name">${card.name}</div>
+    <div class="name${card.goldCost ? ' has-goldcost' : ''}">${card.name}</div>
     <div class="name-rule"></div>
     <div class="art">${spriteSVG(card.key, card.type)}</div>
     <div class="typeline"><span>${card.type}</span><span class="stat">${typeLineStat(card)}</span></div>

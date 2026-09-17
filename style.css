@@ -244,7 +244,10 @@ body {
 }
 
 /* ---- Card face bands: title bar, framed art window, inverted type line, rules box. ---- */
-.card .name{font-weight:700;font-size:.72rem;letter-spacing:.5px;padding:5px 7px 4px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.card .name{font-weight:700;font-size:.68rem;letter-spacing:.5px;padding:5px 7px 4px 26px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+/* Only cards with a gold-cost badge (top-right, same 18px overhang as the cost badge on
+   the left) need this -- the other 28 cards keep the full width for their name. */
+.card .name.has-goldcost{padding-right:26px}
 .card .name-rule{height:2px;flex-shrink:0}
 .card.attack .name-rule{background:var(--boss)} .card.block .name-rule{background:var(--block)}
 .card.loot .name-rule{background:var(--gold)} .card.skill .name-rule{background:var(--skill)}
@@ -256,7 +259,11 @@ body {
 .card.attack .typeline{background:var(--boss);color:#000} .card.block .typeline{background:var(--block);color:#fff}
 .card.loot .typeline{background:var(--gold);color:#000} .card.skill .typeline{background:var(--skill);color:#000}
 .card .typeline .stat{font-size:.7rem;letter-spacing:0}
-.card .desc{font-size:.66rem;line-height:1.28;margin:4px 7px;flex:1;overflow:hidden;word-break:break-word}
+/* line-height 1.15 (not 1.28) reserves the vertical clearance the hotkey badge (bottom-left)
+   needs against the longest 4-line descriptions -- .desc sizes to its own content rather
+   than stretching to fill the card (flex:1 has nothing to distribute here), so the only way
+   to move the last line up is to make each line shorter, not to add margin below it. */
+.card .desc{font-size:.66rem;line-height:1.15;margin:4px 7px;flex:1;overflow:hidden;word-break:break-word}
 
 .combat-log {
   margin-top: 10px;
