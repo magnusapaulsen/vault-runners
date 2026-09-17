@@ -326,6 +326,7 @@ function startCombat() {
     statuses: [],       // { on: 'turnStart' | 'playerAttacked' | 'cardMissed', scope: 'turn' | 'combat', effect() }
     forcedNextRoll: null, // 'max' consumed by the next rollDie/flipCoin call
     rolling: false,     // true for the ~1s a die/coin is spinning -- blocks playing cards and ending the turn
+    ended: false,       // set once by checkCombatEnd -- makes a second call for this fight a no-op
     log: [],
   };
   drawCards(currentHandSize());
@@ -404,7 +405,17 @@ function discardRandomCards(n) {
 // playCard, so it has to come out of every zone too, or it gets reshuffled and replayed
 // for the rest of the fight. Also counts as a "miss" for Sore Loser-style passives.
 function trashCard(card) {
-  game.deck = game.deck.filter(x => x.uid !== card.uid);
+  const remainingDeck = game.deck.filter(x => x.uid !== card.uid);
+  if (remainingDeck.length === 0) {
+    // Never let a trash effect empty the run deck -- with nothing left to draw, the run
+    // is unwinnable. The card is spared from game.deck and simply goes wherever playCard
+    // already put it in combat (the discard pile, same as any other played card), instead
+    // of being stripped out of every zone the way a real trash does below.
+    logMsg(`${card.name} survives the trash -- it's the last card in your deck.`);
+    fireEvent('cardMissed', { card });
+    return;
+  }
+  game.deck = remainingDeck;
   // Only ever called while a card is being played mid-combat, so game.combat always
   // exists here -- same assumption logMsg/fireEvent below already make.
   const c = game.combat;
@@ -752,17 +763,26 @@ function endTurn() {
 
 function checkCombatEnd() {
   const c = game.combat;
+  // Idempotency guard: once this fight has already been resolved (either branch below),
+  // a second call is a no-op. Without this, calling checkCombatEnd() twice while
+  // c.boss.hp is still 0 (it stays 0 for the whole market visit -- nothing resets it
+  // until startCombat() replaces the combat object for the next fight) would re-grant
+  // the gold reward and re-open the market, which reshuffles cardOffers and clears
+  // boughtCardKeys, making an already-bought card buyable again.
+  if (c.ended) return;
   // Player-death is checked before boss-death on purpose: if both hit 0 HP on the same
   // boss attack (e.g. a lethal hit landing the same turn Bramble Guard's retaliation
   // finishes the boss), a mutual kill resolves as a LOSS, not a win. Don't reorder these
   // two checks -- that would silently flip the mutual-kill ruling to a win.
   if (game.hp <= 0) {
+    c.ended = true;
     showScreen('screen-gameover');
     document.getElementById('gameover-text').textContent =
       `${c.boss.name} finished you off on boss ${game.bossIndex + 1} of ${BOSSES.length}.`;
     return;
   }
   if (c.boss.hp <= 0) {
+    c.ended = true;
     const reward = gainGold(15 + 5 * game.bossIndex);
     logMsg(`${c.boss.name} defeated! +${reward} gold.`);
     openMarket();
@@ -798,10 +818,17 @@ function currentTrinketOffers() {
 }
 
 // If Shop Size was just bought, grow this visit's card list immediately instead of
-// making the player wait for the next market to see the extra slot.
+// making the player wait for the next market to see the extra slot. Matches openMarket's
+// no-duplicates rule -- draws from pool keys not already on offer, same as the initial
+// shuffle-and-slice does implicitly by construction. If the pool runs out of unused keys
+// (only possible if cardShopSlots() somehow exceeded SHOP_POOL_KEYS.length, which it can't
+// today since cardShopSlots() is itself capped at the pool size) this just stops adding
+// offers short of the slot count rather than duplicating or looping forever.
 function growCardOffersToShopSize() {
-  while (marketState.cardOffers.length < cardShopSlots()) {
-    const key = SHOP_POOL_KEYS[Math.floor(Math.random() * SHOP_POOL_KEYS.length)];
+  const usedKeys = new Set(marketState.cardOffers.map(o => o.key));
+  const available = shuffle(SHOP_POOL_KEYS.filter(k => !usedKeys.has(k)));
+  while (marketState.cardOffers.length < cardShopSlots() && available.length) {
+    const key = available.pop();
     marketState.cardOffers.push({ ...CARD_LIBRARY[key] });
   }
 }
@@ -1033,7 +1060,11 @@ function renderCombat() {
   document.getElementById('player-hp-fill').style.width = `${Math.max(0, (game.hp / game.maxHp) * 100)}%`;
   document.getElementById('player-hp-text').textContent = `${game.hp}/${game.maxHp}`;
   document.getElementById('player-block-text').textContent = c.block;
-  document.getElementById('player-energy-text').textContent = `${c.energy}/${BASE_ENERGY}`;
+  // BASE_ENERGY is energy-per-turn, not a cap -- Burnout and other energyGain effects can
+  // push c.energy past it, where "x/3" would misleadingly read like a maximum. Only show
+  // the denominator while energy is still at or under the normal per-turn amount.
+  document.getElementById('player-energy-text').textContent =
+    c.energy <= BASE_ENERGY ? `${c.energy}/${BASE_ENERGY}` : `${c.energy}`;
   document.getElementById('player-gold-text').textContent = game.gold;
   document.getElementById('deck-count-text').textContent = game.deck.length;
 
