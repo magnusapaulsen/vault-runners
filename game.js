@@ -3,6 +3,14 @@
 // Slay the Spire flow + Clank!-simple cards + Balatro-style combo scoring
 // ===================================================================
 
+// A patch applied over CARD_LIBRARY, BOSSES, TRINKET_LIBRARY, and the tunable constants
+// at startup (see applyTuningPatch() below the constants block). Empty by default. The
+// dev tuning panel's "Export patch" button copies a patch shaped exactly like this to the
+// clipboard, along with a plain-text changelog of what changed -- paste the patch object
+// here to bake a tuning session's numbers into the file as a one-line, reversible change.
+// Example: { twinBlades: { baseDamage: 9, price: 50 }, bosses: { 0: { maxHp: 60 } } }
+const TUNING = {};
+
 // ---------- Card definitions ----------
 // type: 'attack' | 'block' | 'loot' | 'skill'
 // 'skill' covers both draw-effect cards (drawOnPlay) and energy-effect cards (energyGain) --
@@ -171,12 +179,18 @@ const CARD_LIBRARY = {
 // which nudges a plain constant on `game`. No per-effect special-casing elsewhere.
 // Listed with shopSize first so it's always visible in the base 3 trinket slots --
 // otherwise it could hide behind its own "+1 shop slot" effect and never be reachable.
+// effectAmount is read by apply() via `this` (each apply is always called as
+// `offer.apply(game)`, a method call, so `this` is the trinket object) rather than being
+// a literal in the function body -- that's what lets the dev tuning panel edit a
+// trinket's per-stack effect without touching a function's source text. Editing
+// effectAmount does NOT update the desc string below it, which still prints the
+// original number; see the tuning panel's known-limitations note.
 const TRINKET_LIBRARY = {
-  shopSize:     { key: 'shopSize',     name: 'Shop Size',     price: 45, desc: '+1 card & trinket slot in the market.', apply(game) { game.shopSizeBonus += 1; } },
-  maxHp:        { key: 'maxHp',        name: 'Max HP',        price: 35, desc: '+10 Max HP.',                          apply(game) { game.maxHp += 10; game.hp += 10; } },
-  handSize:     { key: 'handSize',     name: 'Hand Size',     price: 50, desc: '+1 card drawn per turn.',               apply(game) { game.handSizeBonus += 1; } },
-  goldLoot:     { key: 'goldLoot',     name: 'Gold Loot',     price: 35, desc: '+10% gold gained.',                    apply(game) { game.goldLootBonus += 0.10; } },
-  shopDiscount: { key: 'shopDiscount', name: 'Shop Discount', price: 35, desc: '-10% market prices.',                  apply(game) { game.shopDiscount += 0.10; } },
+  shopSize:     { key: 'shopSize',     name: 'Shop Size',     price: 45, effectAmount: 1,    desc: '+1 card & trinket slot in the market.', apply(game) { game.shopSizeBonus += this.effectAmount; } },
+  maxHp:        { key: 'maxHp',        name: 'Max HP',        price: 35, effectAmount: 10,   desc: '+10 Max HP.',                          apply(game) { game.maxHp += this.effectAmount; game.hp += this.effectAmount; } },
+  handSize:     { key: 'handSize',     name: 'Hand Size',     price: 50, effectAmount: 1,    desc: '+1 card drawn per turn.',               apply(game) { game.handSizeBonus += this.effectAmount; } },
+  goldLoot:     { key: 'goldLoot',     name: 'Gold Loot',     price: 35, effectAmount: 0.10, desc: '+10% gold gained.',                    apply(game) { game.goldLootBonus += this.effectAmount; } },
+  shopDiscount: { key: 'shopDiscount', name: 'Shop Discount', price: 35, effectAmount: 0.10, desc: '-10% market prices.',                  apply(game) { game.shopDiscount += this.effectAmount; } },
 };
 
 const STARTER_DECK_KEYS = ['strike', 'strike', 'strike', 'strike', 'strike', 'guard', 'guard', 'guard', 'guard', 'treasureGrab'];
@@ -216,8 +230,62 @@ const BOSSES = [
   { name: 'God',          maxHp: 480, pattern: [0, 13, 15, 17, 13] },
 ];
 
-const HAND_SIZE = 5;
-const BASE_ENERGY = 3;
+// ---------- Tunable run constants ----------
+// Plain mutable (`let`, not `const`) bindings so the dev tuning panel and a pasted TUNING
+// patch (see the empty `const TUNING = {}` near the top of the file) can both reassign
+// them at runtime -- every other reference to these names elsewhere in the file keeps
+// working unchanged, since a `let` is just as readable from other functions as a `const`.
+let HAND_SIZE = 5;
+let BASE_ENERGY = 3;
+let COMBO_STEP = 0.2;
+let START_HP = 100;
+let START_MAX_HP = 100;
+let START_GOLD = 10;
+let BOSS_REWARD_BASE = 15;       // gainGold(BOSS_REWARD_BASE + BOSS_REWARD_PER_BOSS * bossIndex)
+let BOSS_REWARD_PER_BOSS = 5;
+let HEAL_COST_BASE = 15;         // healCost() = discountedPrice(HEAL_COST_BASE); heal amount itself stays a fixed 15, not tunable
+let REMOVE_COST_BASE = 25;
+let REROLL_COST_START = 1;       // game.rerollCost starts here each newRun()
+let REROLL_COST_STEP = 1;        // and climbs by this much every rerollShop()
+
+// Applies a pasted TUNING patch over the card library, boss list, trinket library, and
+// the constants above. Deliberately NOT part of the dev tuning panel block further down
+// this file -- this function (and the TUNING const itself) is meant to keep working even
+// if that whole panel block is stripped out later, so a hand-pasted patch stays a
+// one-line, reversible change independent of the interactive tool.
+function applyTuningPatch() {
+  // Card patches are top-level keys in TUNING (e.g. `{ twinBlades: { baseDamage: 9 } }`),
+  // matching the shape the tuning panel exports -- 'bosses', 'constants' and 'trinkets'
+  // are the only reserved top-level names, so every other key is treated as a card key.
+  const RESERVED_TOP_LEVEL_KEYS = new Set(['bosses', 'constants', 'trinkets']);
+  for (const [key, patch] of Object.entries(TUNING)) {
+    if (RESERVED_TOP_LEVEL_KEYS.has(key)) continue;
+    if (CARD_LIBRARY[key]) Object.assign(CARD_LIBRARY[key], patch);
+  }
+  for (const [idxStr, patch] of Object.entries(TUNING.bosses || {})) {
+    const boss = BOSSES[Number(idxStr)];
+    if (!boss) continue;
+    if (patch.maxHp != null) boss.maxHp = patch.maxHp;
+    if (patch.pattern) boss.pattern = patch.pattern.slice();
+  }
+  for (const [key, patch] of Object.entries(TUNING.trinkets || {})) {
+    if (TRINKET_LIBRARY[key]) Object.assign(TRINKET_LIBRARY[key], patch);
+  }
+  const c = TUNING.constants || {};
+  if (c.HAND_SIZE != null) HAND_SIZE = c.HAND_SIZE;
+  if (c.BASE_ENERGY != null) BASE_ENERGY = c.BASE_ENERGY;
+  if (c.COMBO_STEP != null) COMBO_STEP = c.COMBO_STEP;
+  if (c.START_HP != null) START_HP = c.START_HP;
+  if (c.START_MAX_HP != null) START_MAX_HP = c.START_MAX_HP;
+  if (c.START_GOLD != null) START_GOLD = c.START_GOLD;
+  if (c.BOSS_REWARD_BASE != null) BOSS_REWARD_BASE = c.BOSS_REWARD_BASE;
+  if (c.BOSS_REWARD_PER_BOSS != null) BOSS_REWARD_PER_BOSS = c.BOSS_REWARD_PER_BOSS;
+  if (c.HEAL_COST_BASE != null) HEAL_COST_BASE = c.HEAL_COST_BASE;
+  if (c.REMOVE_COST_BASE != null) REMOVE_COST_BASE = c.REMOVE_COST_BASE;
+  if (c.REROLL_COST_START != null) REROLL_COST_START = c.REROLL_COST_START;
+  if (c.REROLL_COST_STEP != null) REROLL_COST_STEP = c.REROLL_COST_STEP;
+}
+applyTuningPatch();
 
 // ---------- Game state ----------
 let game = null;
@@ -225,9 +293,9 @@ let uidCounter = 0;
 
 function newRun() {
   game = {
-    hp: 100,
-    maxHp: 100,
-    gold: 10,
+    hp: START_HP,
+    maxHp: START_MAX_HP,
+    gold: START_GOLD,
     deck: STARTER_DECK_KEYS.map(k => instantiateCard(k)),
     // trinket-driven constants -- each trinket purchase nudges one of these, nothing else
     handSizeBonus: 0,
@@ -238,7 +306,7 @@ function newRun() {
     // Cost of the next market card reroll -- climbs by 1 each use and never resets between
     // shop visits (only newRun() resets it), so rerolling repeatedly across a whole run
     // gets steadily more expensive.
-    rerollCost: 1,
+    rerollCost: REROLL_COST_START,
     bossIndex: 0,
     // combat-only state, set by startCombat
     combat: null,
@@ -335,7 +403,7 @@ function logMsg(msg) {
 }
 
 // ---------- Playing cards ----------
-const COMBO_STEP = 0.2;
+// COMBO_STEP is declared with the other tunable run constants, above.
 
 // What your next attack's combo multiplier would be, without playing anything --
 // used by cards like Adrenaline that check the current combo state.
@@ -756,7 +824,7 @@ function checkCombatEnd() {
   }
   if (c.boss.hp <= 0) {
     c.ended = true;
-    const reward = gainGold(15 + 5 * game.bossIndex);
+    const reward = gainGold(BOSS_REWARD_BASE + BOSS_REWARD_PER_BOSS * game.bossIndex);
     logMsg(`${c.boss.name} defeated! +${reward} gold.`);
     openMarket();
   }
@@ -778,7 +846,7 @@ function openMarket() {
 function rerollShop() {
   if (game.gold < game.rerollCost) return;
   game.gold -= game.rerollCost;
-  game.rerollCost += 1;
+  game.rerollCost += REROLL_COST_STEP;
   marketState.cardOffers = shuffle(SHOP_POOL_KEYS).slice(0, cardShopSlots()).map(k => ({ ...CARD_LIBRARY[k] }));
   marketState.boughtCardKeys = new Set();
   renderMarket();
@@ -830,8 +898,8 @@ function buyMarketTrinket(idx) {
   renderMarket();
 }
 
-function healCost() { return discountedPrice(15); }
-function removeCost() { return discountedPrice(25); }
+function healCost() { return discountedPrice(HEAL_COST_BASE); }
+function removeCost() { return discountedPrice(REMOVE_COST_BASE); }
 
 function doHeal() {
   const cost = healCost();
@@ -1210,3 +1278,434 @@ document.getElementById('btn-restart-lose').onclick = newRun;
 document.getElementById('btn-restart-win').onclick = newRun;
 
 showScreen('screen-start');
+
+// ============================================================================
+// DEV TUNING PANEL -- balance-iteration overlay, backtick (`) toggles it.
+// Not part of the shipped game. Doesn't run anything while closed (event listeners
+// only, no polling/rendering loop) and touches nothing outside this block except by
+// calling already-public functions (renderCombat/renderMarket/renderRemoveScreen) and
+// mutating already-public data (CARD_LIBRARY, BOSSES, TRINKET_LIBRARY, the tunable
+// constants). To strip this tool entirely, delete: this whole block, the #tuning-panel
+// markup in index.html, and the ".tuning-*" rules in style.css.
+// ============================================================================
+
+// The exact numeric fields a card can carry, in the order the panel shows them. Booleans
+// (deferredAttack, isAttackToo, exhaustOnPlay) are flags, not tunable numbers, and are
+// deliberately not in this list -- a card only gets an input for a field it actually has.
+const TUNING_CARD_NUMERIC_FIELDS = [
+  'cost', 'baseDamage', 'hits', 'block', 'blockComboBonus', 'comboBonus', 'gold',
+  'goldCost', 'goldPerAttack', 'goldPerTurn', 'selfDamage', 'energyGain', 'drawOnPlay',
+  'discardCost', 'damagePerPip', 'winDamage', 'retaliateDamage', 'damageFromBlockPercent',
+  'price',
+];
+
+const TUNING_CONST_NAMES = [
+  'BASE_ENERGY', 'HAND_SIZE', 'COMBO_STEP', 'START_HP', 'START_MAX_HP', 'START_GOLD',
+  'BOSS_REWARD_BASE', 'BOSS_REWARD_PER_BOSS', 'HEAL_COST_BASE', 'REMOVE_COST_BASE',
+  'REROLL_COST_START', 'REROLL_COST_STEP',
+];
+// Plain `let` bindings can't be handed around as values, so each constant gets a
+// get/set pair here -- this is the seam that lets the panel read and reassign them
+// generically instead of a 12-way if/else repeated in three different places.
+const TUNING_CONST_ACCESSORS = {
+  BASE_ENERGY: { get: () => BASE_ENERGY, set: (v) => { BASE_ENERGY = v; } },
+  HAND_SIZE: { get: () => HAND_SIZE, set: (v) => { HAND_SIZE = v; } },
+  COMBO_STEP: { get: () => COMBO_STEP, set: (v) => { COMBO_STEP = v; } },
+  START_HP: { get: () => START_HP, set: (v) => { START_HP = v; } },
+  START_MAX_HP: { get: () => START_MAX_HP, set: (v) => { START_MAX_HP = v; } },
+  START_GOLD: { get: () => START_GOLD, set: (v) => { START_GOLD = v; } },
+  BOSS_REWARD_BASE: { get: () => BOSS_REWARD_BASE, set: (v) => { BOSS_REWARD_BASE = v; } },
+  BOSS_REWARD_PER_BOSS: { get: () => BOSS_REWARD_PER_BOSS, set: (v) => { BOSS_REWARD_PER_BOSS = v; } },
+  HEAL_COST_BASE: { get: () => HEAL_COST_BASE, set: (v) => { HEAL_COST_BASE = v; } },
+  REMOVE_COST_BASE: { get: () => REMOVE_COST_BASE, set: (v) => { REMOVE_COST_BASE = v; } },
+  REROLL_COST_START: { get: () => REROLL_COST_START, set: (v) => { REROLL_COST_START = v; } },
+  REROLL_COST_STEP: { get: () => REROLL_COST_STEP, set: (v) => { REROLL_COST_STEP = v; } },
+};
+
+// Snapshot taken once, right now -- after applyTuningPatch() already ran up top, so
+// "the file's values" (what Reset restores to) means the file plus any baked-in TUNING
+// patch, not literally the raw source literals. Everything the panel edits is compared
+// against this to decide what counts as "changed" for the export patch and changelog.
+const TUNING_BASELINE = {
+  cards: Object.fromEntries(Object.entries(CARD_LIBRARY).map(([key, card]) => [
+    key,
+    Object.fromEntries(TUNING_CARD_NUMERIC_FIELDS.filter(f => card[f] !== undefined).map(f => [f, card[f]])),
+  ])),
+  bosses: BOSSES.map(b => ({ maxHp: b.maxHp, pattern: b.pattern.slice() })),
+  trinkets: Object.fromEntries(Object.entries(TRINKET_LIBRARY).map(([key, t]) => [
+    key, { price: t.price, effectAmount: t.effectAmount },
+  ])),
+  constants: Object.fromEntries(TUNING_CONST_NAMES.map(name => [name, TUNING_CONST_ACCESSORS[name].get()])),
+};
+
+// Same shape as TUNING_BASELINE's categories, but only holding entries that currently
+// differ from baseline -- each leaf is { old, new }. This IS the diff the export patch
+// and changelog are built from, kept up to date incrementally as edits land rather than
+// recomputed by diffing baseline against live state (simpler once trinket per-stack
+// effects and boss patterns are involved).
+let tuningEdits = { cards: {}, bosses: {}, trinkets: {}, constants: {} };
+
+// A card key can live in up to five different zones at once (the run deck, hand, draw
+// pile, discard pile, exhaust pile) plus the market's current offers -- instantiateCard
+// and openMarket/rerollShop/growCardOffersToShopSize all spread CARD_LIBRARY into a new
+// object per instance, so editing the library alone leaves every existing instance on
+// its old value. This patches all of them in place so an edit is visible immediately on
+// cards already drawn, in the shop, or sitting in a pile -- not just future ones.
+function patchCardInstancesEverywhere(key, field, value) {
+  const zones = [];
+  if (game) {
+    zones.push(game.deck);
+    if (game.combat) zones.push(game.combat.hand, game.combat.drawPile, game.combat.discardPile, game.combat.exhaustPile);
+  }
+  if (marketState) zones.push(marketState.cardOffers);
+  for (const zone of zones) {
+    if (!zone) continue;
+    for (const inst of zone) {
+      if (inst.key === key) inst[field] = value;
+    }
+  }
+}
+
+// Re-renders whichever screens are currently backed by live state, so an edit shows up
+// immediately regardless of which screen is open behind the panel. Each render function
+// already guards its own preconditions (renderCombat no-ops with no combat, etc.).
+function refreshVisibleScreens() {
+  if (game && game.combat) renderCombat();
+  if (marketState) renderMarket();
+  if (game) renderRemoveScreen();
+}
+
+function setInputEdited(el, edited) {
+  if (el) el.classList.toggle('tuning-edited', edited);
+}
+
+function onTuningCardFieldChange(key, field, rawValue, el) {
+  const value = Number(rawValue);
+  if (!Number.isFinite(value)) return;
+  CARD_LIBRARY[key][field] = value;
+  patchCardInstancesEverywhere(key, field, value);
+  const baseline = TUNING_BASELINE.cards[key][field];
+  const bucket = (tuningEdits.cards[key] ||= {});
+  if (value === baseline) {
+    delete bucket[field];
+    if (!Object.keys(bucket).length) delete tuningEdits.cards[key];
+    setInputEdited(el, false);
+  } else {
+    bucket[field] = { old: baseline, new: value };
+    setInputEdited(el, true);
+  }
+  refreshVisibleScreens();
+}
+
+function onTuningBossMaxHpChange(idx, rawValue, el) {
+  const value = Number(rawValue);
+  if (!Number.isFinite(value)) return;
+  BOSSES[idx].maxHp = value;
+  // If this boss is the one currently being fought, update the active fight's HP-bar
+  // denominator too. Current HP is deliberately left alone rather than guessing whether
+  // it should rescale -- see the report on this feature for the reasoning.
+  if (game && game.combat && game.bossIndex === idx) game.combat.boss.maxHp = value;
+  const baseline = TUNING_BASELINE.bosses[idx].maxHp;
+  const bucket = (tuningEdits.bosses[idx] ||= {});
+  if (value === baseline) {
+    delete bucket.maxHp;
+    if (!Object.keys(bucket).length) delete tuningEdits.bosses[idx];
+    setInputEdited(el, false);
+  } else {
+    bucket.maxHp = { old: baseline, new: value };
+    setInputEdited(el, true);
+  }
+  refreshVisibleScreens();
+}
+
+function onTuningBossPatternChange(idx, rawValue, el) {
+  const values = rawValue.split(',').map(s => s.trim()).filter(s => s.length).map(Number);
+  if (!values.length || values.some(v => !Number.isFinite(v))) return; // leave invalid input un-applied
+  const boss = BOSSES[idx];
+  // Mutate the array's CONTENTS in place rather than reassigning `boss.pattern` -- an
+  // in-progress fight against this same boss holds the identical array by reference
+  // (see startCombat), so splicing it updates that fight's pattern immediately instead
+  // of only affecting the next time this boss is encountered.
+  boss.pattern.splice(0, boss.pattern.length, ...values);
+  if (game && game.combat && game.bossIndex === idx) {
+    game.combat.boss.patternIndex = game.combat.boss.patternIndex % boss.pattern.length;
+  }
+  const baseline = TUNING_BASELINE.bosses[idx].pattern;
+  const same = baseline.length === values.length && baseline.every((v, i) => v === values[i]);
+  const bucket = (tuningEdits.bosses[idx] ||= {});
+  if (same) {
+    delete bucket.pattern;
+    if (!Object.keys(bucket).length) delete tuningEdits.bosses[idx];
+    setInputEdited(el, false);
+  } else {
+    bucket.pattern = { old: baseline.slice(), new: values.slice() };
+    setInputEdited(el, true);
+  }
+  refreshVisibleScreens();
+}
+
+function onTuningTrinketFieldChange(key, field, rawValue, el) {
+  const value = Number(rawValue);
+  if (!Number.isFinite(value)) return;
+  TRINKET_LIBRARY[key][field] = value;
+  const baseline = TUNING_BASELINE.trinkets[key][field];
+  const bucket = (tuningEdits.trinkets[key] ||= {});
+  if (value === baseline) {
+    delete bucket[field];
+    if (!Object.keys(bucket).length) delete tuningEdits.trinkets[key];
+    setInputEdited(el, false);
+  } else {
+    bucket[field] = { old: baseline, new: value };
+    setInputEdited(el, true);
+  }
+  refreshVisibleScreens();
+}
+
+function onTuningConstantChange(name, rawValue, el) {
+  const value = Number(rawValue);
+  if (!Number.isFinite(value)) return;
+  TUNING_CONST_ACCESSORS[name].set(value);
+  const baseline = TUNING_BASELINE.constants[name];
+  if (value === baseline) {
+    delete tuningEdits.constants[name];
+    setInputEdited(el, false);
+  } else {
+    tuningEdits.constants[name] = { old: baseline, new: value };
+    setInputEdited(el, true);
+  }
+  refreshVisibleScreens();
+}
+
+function isCardFieldEdited(key, field) { return !!(tuningEdits.cards[key] && field in tuningEdits.cards[key]); }
+function isBossFieldEdited(idx, field) { return !!(tuningEdits.bosses[idx] && field in tuningEdits.bosses[idx]); }
+function isTrinketFieldEdited(key, field) { return !!(tuningEdits.trinkets[key] && field in tuningEdits.trinkets[key]); }
+function isConstantEdited(name) { return name in tuningEdits.constants; }
+
+function tuningNumberInput(kind, attrs, value, edited, extraClass) {
+  const dataAttrs = Object.entries(attrs).map(([k, v]) => `data-${k}="${v}"`).join(' ');
+  return `<input type="number" step="any" class="${extraClass || ''}${edited ? ' tuning-edited' : ''}" data-kind="${kind}" ${dataAttrs} value="${value}">`;
+}
+
+function buildTuningConstantsSection() {
+  const rows = TUNING_CONST_NAMES.map(name => `
+    <div class="tuning-row">
+      <div class="tuning-name">${name}</div>
+      <span class="tuning-field">
+        ${tuningNumberInput('const', { name }, TUNING_CONST_ACCESSORS[name].get(), isConstantEdited(name))}
+      </span>
+    </div>
+  `).join('');
+  return `<div class="tuning-section"><h3>Run Constants</h3>${rows}</div>`;
+}
+
+function buildTuningBossesSection() {
+  const rows = BOSSES.map((boss, i) => `
+    <div class="tuning-row">
+      <div class="tuning-name">${boss.name}<span class="tuning-key">boss ${i}</span></div>
+      <span class="tuning-field">
+        <label>maxHp</label>
+        ${tuningNumberInput('boss-maxhp', { idx: i }, boss.maxHp, isBossFieldEdited(i, 'maxHp'))}
+      </span>
+      <span class="tuning-field">
+        <label>pattern</label>
+        <input type="text" class="tuning-pattern${isBossFieldEdited(i, 'pattern') ? ' tuning-edited' : ''}" data-kind="boss-pattern" data-idx="${i}" value="${boss.pattern.join(', ')}">
+      </span>
+    </div>
+  `).join('');
+  return `<div class="tuning-section"><h3>Bosses</h3>${rows}</div>`;
+}
+
+function buildTuningTrinketsSection() {
+  const rows = Object.values(TRINKET_LIBRARY).map(t => `
+    <div class="tuning-row">
+      <div class="tuning-name">${t.name}<span class="tuning-key">${t.key}</span></div>
+      <span class="tuning-field">
+        <label>price</label>
+        ${tuningNumberInput('trinket', { key: t.key, field: 'price' }, t.price, isTrinketFieldEdited(t.key, 'price'))}
+      </span>
+      <span class="tuning-field">
+        <label>effect</label>
+        ${tuningNumberInput('trinket', { key: t.key, field: 'effectAmount' }, t.effectAmount, isTrinketFieldEdited(t.key, 'effectAmount'))}
+      </span>
+    </div>
+  `).join('');
+  return `<div class="tuning-section"><h3>Trinkets</h3>${rows}</div>`;
+}
+
+function buildTuningCardsSection() {
+  const groups = [
+    ['ATTACK', 'attack'], ['BLOCK', 'block'], ['LOOT', 'loot'], ['SKILL', 'skill'],
+  ];
+  const body = groups.map(([label, type]) => {
+    const cards = Object.values(CARD_LIBRARY).filter(c => c.type === type);
+    const rows = cards.map(card => {
+      const fields = TUNING_CARD_NUMERIC_FIELDS.filter(f => card[f] !== undefined).map(f => `
+        <span class="tuning-field">
+          <label>${f}</label>
+          ${tuningNumberInput('card', { key: card.key, field: f }, card[f], isCardFieldEdited(card.key, f))}
+        </span>
+      `).join('');
+      return `
+        <div class="tuning-row">
+          <div class="tuning-name">${card.name}<span class="tuning-key">${card.key}</span></div>
+          ${fields}
+        </div>
+      `;
+    }).join('');
+    return `<div class="tuning-group-label">${label}</div>${rows}`;
+  }).join('');
+  return `<div class="tuning-section"><h3>Cards</h3>${body}</div>`;
+}
+
+function renderTuningBody() {
+  document.getElementById('tuning-body').innerHTML =
+    buildTuningConstantsSection() + buildTuningBossesSection() + buildTuningTrinketsSection() + buildTuningCardsSection();
+}
+
+function openTuningPanel() {
+  renderTuningBody();
+  document.getElementById('tuning-panel').classList.remove('hidden');
+}
+
+function closeTuningPanel() {
+  document.getElementById('tuning-panel').classList.add('hidden');
+}
+
+function toggleTuningPanel() {
+  const panel = document.getElementById('tuning-panel');
+  if (panel.classList.contains('hidden')) openTuningPanel();
+  else closeTuningPanel();
+}
+
+// One delegated listener for every input in the panel, rather than one per input --
+// dispatches on data-kind. Uses 'input' (not 'change') so number-field arrow-clicks and
+// typing both apply live without needing to blur the field first.
+document.getElementById('tuning-body').addEventListener('input', (e) => {
+  const el = e.target;
+  const kind = el.dataset.kind;
+  if (!kind) return;
+  if (kind === 'card') onTuningCardFieldChange(el.dataset.key, el.dataset.field, el.value, el);
+  else if (kind === 'boss-maxhp') onTuningBossMaxHpChange(Number(el.dataset.idx), el.value, el);
+  else if (kind === 'boss-pattern') onTuningBossPatternChange(Number(el.dataset.idx), el.value, el);
+  else if (kind === 'trinket') onTuningTrinketFieldChange(el.dataset.key, el.dataset.field, el.value, el);
+  else if (kind === 'const') onTuningConstantChange(el.dataset.name, el.value, el);
+});
+
+// Builds the same { <cardKey>: {...}, bosses: {...}, trinkets: {...}, constants: {...} }
+// shape applyTuningPatch() reads, from only the entries in tuningEdits, plus a plain-text
+// changelog line per changed field. Never touches onPlay -- tuningEdits only ever holds
+// plain numeric/array diffs, so there is nothing function-shaped to lose in the round trip.
+function buildTuningPatchAndChangelog() {
+  const patch = {};
+  const changelog = [];
+
+  for (const [key, fields] of Object.entries(tuningEdits.cards)) {
+    if (!Object.keys(fields).length) continue;
+    patch[key] = {};
+    for (const [field, { old, new: nv }] of Object.entries(fields)) {
+      patch[key][field] = nv;
+      changelog.push(`${key}.${field}: ${old} → ${nv}`);
+    }
+  }
+
+  const bossPatch = {};
+  for (const [idx, fields] of Object.entries(tuningEdits.bosses)) {
+    if (!Object.keys(fields).length) continue;
+    bossPatch[idx] = {};
+    for (const [field, { old, new: nv }] of Object.entries(fields)) {
+      bossPatch[idx][field] = Array.isArray(nv) ? nv.slice() : nv;
+      const fmt = (v) => Array.isArray(v) ? `[${v.join(', ')}]` : v;
+      changelog.push(`bosses[${idx}].${field}: ${fmt(old)} → ${fmt(nv)}`);
+    }
+  }
+  if (Object.keys(bossPatch).length) patch.bosses = bossPatch;
+
+  const trinketPatch = {};
+  for (const [key, fields] of Object.entries(tuningEdits.trinkets)) {
+    if (!Object.keys(fields).length) continue;
+    trinketPatch[key] = {};
+    for (const [field, { old, new: nv }] of Object.entries(fields)) {
+      trinketPatch[key][field] = nv;
+      changelog.push(`trinkets.${key}.${field}: ${old} → ${nv}`);
+    }
+  }
+  if (Object.keys(trinketPatch).length) patch.trinkets = trinketPatch;
+
+  const constPatch = {};
+  for (const [name, { old, new: nv }] of Object.entries(tuningEdits.constants)) {
+    constPatch[name] = nv;
+    changelog.push(`constants.${name}: ${old} → ${nv}`);
+  }
+  if (Object.keys(constPatch).length) patch.constants = constPatch;
+
+  return { patch, changelog: changelog.join('\n') };
+}
+
+async function exportTuningPatch() {
+  const { patch, changelog } = buildTuningPatchAndChangelog();
+  const text = `const TUNING = ${JSON.stringify(patch, null, 2)};\n\n// Changelog:\n${changelog || '(no changes)'}`;
+  try {
+    await navigator.clipboard.writeText(text);
+    logTuningStatus(Object.keys(patch).length ? 'Patch + changelog copied to clipboard.' : 'Nothing changed -- copied an empty patch.');
+  } catch (e) {
+    logTuningStatus('Clipboard unavailable -- patch logged to the console instead.');
+    console.log(text);
+  }
+}
+
+function logTuningStatus(msg) {
+  let el = document.querySelector('.tuning-status');
+  if (!el) {
+    el = document.createElement('span');
+    el.className = 'tuning-status';
+    el.style.marginLeft = '10px';
+    el.style.fontSize = '0.75rem';
+    el.style.opacity = '0.75';
+    document.querySelector('.tuning-header').appendChild(el);
+  }
+  el.textContent = msg;
+}
+
+// Restores every card, boss, trinket, and constant to TUNING_BASELINE (the file's values,
+// plus any baked-in TUNING patch) and clears all tracked edits. Does not touch onPlay or
+// anything else the panel never edited in the first place.
+function resetTuningPanel() {
+  for (const [key, fields] of Object.entries(TUNING_BASELINE.cards)) {
+    for (const [field, value] of Object.entries(fields)) {
+      CARD_LIBRARY[key][field] = value;
+      patchCardInstancesEverywhere(key, field, value);
+    }
+  }
+  BOSSES.forEach((boss, i) => {
+    const base = TUNING_BASELINE.bosses[i];
+    boss.maxHp = base.maxHp;
+    boss.pattern.splice(0, boss.pattern.length, ...base.pattern);
+    if (game && game.combat && game.bossIndex === i) {
+      game.combat.boss.maxHp = base.maxHp;
+      game.combat.boss.patternIndex = game.combat.boss.patternIndex % boss.pattern.length;
+    }
+  });
+  for (const [key, fields] of Object.entries(TUNING_BASELINE.trinkets)) {
+    Object.assign(TRINKET_LIBRARY[key], fields);
+  }
+  for (const name of TUNING_CONST_NAMES) {
+    TUNING_CONST_ACCESSORS[name].set(TUNING_BASELINE.constants[name]);
+  }
+  tuningEdits = { cards: {}, bosses: {}, trinkets: {}, constants: {} };
+  renderTuningBody();
+  refreshVisibleScreens();
+  logTuningStatus('Reset to file values.');
+}
+
+document.getElementById('btn-tuning-close').onclick = closeTuningPanel;
+document.getElementById('btn-tuning-export').onclick = exportTuningPatch;
+document.getElementById('btn-tuning-reset').onclick = resetTuningPanel;
+
+// Backtick toggles the panel from anywhere (start screen, combat, market, ...) -- a
+// separate listener from the existing combat hotkeys (Space / 1-9 / 0) further up this
+// file, which stay scoped to screen-combat. Backtick was unbound before this.
+document.addEventListener('keydown', (e) => {
+  if (e.key !== '`') return;
+  e.preventDefault();
+  toggleTuningPanel();
+});
