@@ -1063,6 +1063,150 @@ function spriteSVG(key,type){
   return `<svg viewBox="0 0 ${GRID_W} ${GRID_H}" preserveAspectRatio="xMidYMid meet" xmlns="http://www.w3.org/2000/svg"><defs><pattern id="pg-${key}" width="1" height="1" patternUnits="userSpaceOnUse"><path d="M1 0 L0 0 0 1" fill="none" stroke="${ink}" stroke-width="0.06" opacity="${GRID_OPACITY[type]||.35}"/></pattern></defs><rect width="${GRID_W}" height="${GRID_H}" fill="url(#pg-${key})"/>${g}</svg>`;
 }
 
+// ============================================================================
+// BOSS PORTRAITS — the big pixel-art creature above the boss HP bar.
+//
+// The ART LIVES IN boss-art.js, one file up, as pure data. This block is only the
+// renderer: it reads window.BOSS_ART and turns it into an <svg>. To redesign the
+// bosses, edit boss-art.js (or the generator in tools/boss-art/) and change nothing
+// in here. That split exists so the art can be reworked without a 130KB file, and
+// so a broken art file can only ever produce a missing portrait, never a broken game.
+//
+// Self-contained, like the dev tuning panel below: nothing outside this block
+// depends on it. To strip the feature entirely, delete THIS WHOLE BLOCK, the whole
+// of boss-art.js, the <script> tag for it in index.html, the #boss-portrait div, and
+// the ".boss-portrait" rules in style.css.
+//
+// Art is pixel-run data on a larger grid than the cards (78x44 vs 32x20), same
+// [col, row, width, height, ink] format. Keyed by boss NAME, not index, so
+// reordering BOSSES can't mismatch a portrait to the wrong fight. A boss with no
+// entry renders nothing and leaves the bar where it always was, so adding a new
+// boss without art is safe.
+// ============================================================================
+const BOSS_GRID_W = 78, BOSS_GRID_H = 44;
+
+// Read from boss-art.js. Defaults keep the game fully playable if that file is
+// missing or malformed -- portraits quietly disappear instead of the game failing
+// to boot, which matters because it is otherwise a single point of total failure.
+const BOSS_ART = (typeof window !== 'undefined' && window.BOSS_ART) || {};
+const BOSS_INK = BOSS_ART.ink || {};
+const BOSS_PORTRAITS = BOSS_ART.portraits || {};
+const BOSS_VIEWS = BOSS_ART.views || {};
+
+// One line of feedback in the console, since the failure mode is otherwise a blank
+// box that looks like a styling problem. Runs tools/boss-art/check.js for the full
+// structural report.
+if (typeof window !== 'undefined' && window.console && window.console.info) {
+  const n = Object.keys(BOSS_PORTRAITS).length;
+  window.console.info(
+    n ? `[boss art] loaded ${n} portraits from boss-art.js`
+      : '[boss art] boss-art.js loaded no portraits -- portraits are disabled');
+}
+
+
+
+// `variant` distinguishes the two stacked layers (base art + red hit-flash overlay) so
+// the two <pattern> ids stay unique -- duplicate ids in one document are invalid, and
+// the second copy would otherwise bind to the first copy's pattern.
+// `className` is baked into the opening tag rather than applied by re-wrapping stripped
+// content. An earlier version sliced the <svg ...> off and put a bare <svg> back, which
+// silently dropped the viewBox and preserveAspectRatio -- and an SVG with no viewBox has
+// no coordinate mapping, so every rect drew at 1 unit = 1 CSS pixel and the art came out
+// tiny no matter how large the container was.
+function bossPortraitSVG(bossName, variant, className) {
+  // hasOwnProperty, not a plain lookup: BOSS_PORTRAITS['constructor'] (or 'toString',
+  // 'valueOf', ...) otherwise resolves to something on Object.prototype, and iterating
+  // that throws. Nothing here ever passes a non-literal name today, but the guard costs
+  // nothing and keeps the lookup total.
+  const runs = Object.prototype.hasOwnProperty.call(BOSS_PORTRAITS, bossName)
+    ? BOSS_PORTRAITS[bossName] : null;
+  if (!runs || !runs.length) return '';
+  let g = '';
+  for (const [x, y, w, h, ink] of runs) {
+    g += `<rect x="${x}" y="${y}" width="${w}" height="${h}" fill="${BOSS_INK[ink] || BOSS_INK.G}"/>`;
+  }
+  // The pixel-grid tint is a pattern over the whole cell rather than a shape, so it fills
+  // the gaps between the outlined bodies and ties the portrait to the card art's look.
+  // It is tinted with the boss's OWN dominant colour (the ink covering the most pixels,
+  // ignoring the black outline and white highlights) so each portrait's backdrop matches
+  // it -- grey for the rats, purple for the Lich, gold for God.
+  // The id is slugged from the boss name so two portraits can never collide on one
+  // page -- 'The Dragon' and 'Iron Sentinel' must not share an id just because they
+  // happen to have the same number of runs.
+  const area = {};
+  for (const [x, y, w, h, ink] of runs) {
+    if (ink === 'K' || ink === 'W') continue;
+    area[ink] = (area[ink] || 0) + w * h;
+  }
+  const accent = Object.keys(area).sort((a, b) => area[b] - area[a])[0] || 'G';
+  const slug = String(bossName).toLowerCase().replace(/[^a-z0-9]+/g, '-');
+  const pid = `bp-${slug}${variant ? '-' + variant : ''}`;
+  // Each boss gets its own viewBox, cropped tight to its art, so it fills the frame
+  // instead of floating in a shared 78x44 box. The art data itself stays on one grid --
+  // only the window onto it differs. CSS then fits the result inside a fixed box with
+  // preserveAspectRatio="meet", so a tall narrow boss is height-limited and a wide
+  // squat one is width-limited, and each is as large as its own shape allows.
+  const [vx, vy, vw, vh] = BOSS_VIEWS[bossName] || [0, 0, BOSS_GRID_W, BOSS_GRID_H];
+  return `<svg${className ? ` class="${className}"` : ''} viewBox="${vx} ${vy} ${vw} ${vh}" preserveAspectRatio="xMidYMid meet" xmlns="http://www.w3.org/2000/svg"><defs><pattern id="${pid}" width="1" height="1" patternUnits="userSpaceOnUse"><path d="M1 0 L0 0 0 1" fill="none" stroke="${BOSS_INK[accent]}" stroke-width="0.06" opacity="0.18"/></pattern></defs><rect x="${vx}" y="${vy}" width="${vw}" height="${vh}" fill="url(#${pid})"/>${g}</svg>`;
+}
+
+// ---------- Hit reaction ----------
+// Detected by COMPARING boss HP between renders rather than by hooking the damage
+// sites. That keeps the whole reaction inside this block: nothing in resolveAttackHit,
+// Bramble Guard's retaliation, or anywhere else in the game core has to know this
+// exists, so stripping the block really does leave no traces.
+let portraitLastName = null;
+let portraitLastHp = null;
+let portraitHitTimer = null;
+
+function bossPortraitFlash() {
+  const el = document.getElementById('boss-portrait');
+  if (!el) return;
+  // Remove-then-readd, forcing the CSS animation to restart. A second hit landing while
+  // the first flash is still fading has to retrigger, and simply re-adding a class
+  // that is already there is a no-op. Same reflow trick showComboPopup uses.
+  el.classList.remove('hit');
+  void el.offsetWidth;
+  el.classList.add('hit');
+  clearTimeout(portraitHitTimer);
+  portraitHitTimer = setTimeout(() => el.classList.remove('hit'), 520);
+}
+
+// The one line outside this block that touches it. Guarded on the element so deleting
+// the #boss-portrait div from index.html is a complete removal on its own -- the game
+// keeps running with the portrait simply absent.
+function renderBossPortrait(bossName, bossHp) {
+  const el = document.getElementById('boss-portrait');
+  if (!el) return;
+  const base = bossPortraitSVG(bossName, 'base');
+  if (!base) {
+    el.innerHTML = '';
+    el.classList.add('empty');
+    portraitLastName = null;
+    portraitLastHp = null;
+    return;
+  }
+  // Two pixel-identical layers, each a complete <svg> with its own viewBox. CSS forces
+  // every rect in the top one to red and fades its opacity, which reads as the whole
+  // boss flashing red while the artwork underneath stays put -- no SVG filter, no second
+  // set of pixel data, and the silhouette can't shift because the two layers share the
+  // same viewBox and geometry exactly.
+  el.innerHTML = bossPortraitSVG(bossName, 'base', 'base')
+               + bossPortraitSVG(bossName, 'flash', 'flash');
+  el.classList.remove('empty');
+
+  // A rising HP means a new fight or a heal, not a hit: rebase without flashing.
+  if (bossName !== portraitLastName || bossHp > portraitLastHp) {
+    portraitLastName = bossName;
+    portraitLastHp = bossHp;
+    return;
+  }
+  if (bossHp < portraitLastHp) {
+    portraitLastHp = bossHp;
+    bossPortraitFlash();
+  }
+}
+
 // ---------- Card badges (the colored circles showing cost / hotkey) ----------
 // One shared readout so a hand card and its shop listing always agree on what a card does --
 // cardAttackDisplay/cardBlockDisplay are the single source of truth for "how much damage or
@@ -1134,6 +1278,7 @@ function renderCombat() {
   document.getElementById('player-gold-text').textContent = game.gold;
   document.getElementById('deck-count-text').textContent = game.deck.length;
 
+  renderBossPortrait(c.boss.name, c.boss.hp); // BOSS PORTRAITS block -- safe to delete, see above
   document.getElementById('boss-name').textContent = `${c.boss.name}  (Boss ${game.bossIndex + 1}/${BOSSES.length})`;
   document.getElementById('boss-hp-fill').style.width = `${Math.max(0, (c.boss.hp / c.boss.maxHp) * 100)}%`;
   document.getElementById('boss-hp-text').textContent = `${c.boss.hp}/${c.boss.maxHp}`;

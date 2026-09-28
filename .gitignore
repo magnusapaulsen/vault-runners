@@ -1,1 +1,5 @@
 .claude/
+
+# Generated preview of the boss portraits -- rebuild with `node tools/boss-art/sheet.js`.
+# 300+ KB of duplicated SVG, no value in version control.
+boss_sheet.html

@@ -39,6 +39,10 @@
     </div>
 
     <div class="boss-area">
+      <!-- BOSS PORTRAIT: optional pixel art. To remove the feature entirely, delete
+           this div, the "BOSS PORTRAITS" block in game.js (and its one call in
+           renderCombat), and the ".boss-portrait" rules in style.css. Nothing else. -->
+      <div class="boss-portrait empty" id="boss-portrait"></div>
       <div class="boss-name" id="boss-name">Boss</div>
       <div class="bar boss-bar"><div class="bar-fill boss-fill" id="boss-hp-fill"></div></div>
       <div id="boss-hp-text"></div>
@@ -134,6 +138,12 @@
   <div class="tuning-body" id="tuning-body"></div>
 </div>
 
+<!-- BOSS ART: pure data for the boss portraits. Must load before game.js, which
+     reads window.BOSS_ART. Redesign the bosses by editing this file (or the
+     generator in tools/boss-art/) -- game.js only renders it and needs no changes.
+     Delete this tag, boss-art.js, the #boss-portrait div, and the .boss-portrait
+     rules in style.css to remove the feature. -->
+<script src="boss-art.js"></script>
 <script src="game.js"></script>
 </body>
 </html>

@@ -132,6 +132,67 @@ body {
   margin-bottom: 12px;
   position: relative;
 }
+/* BOSS PORTRAIT — optional. Delete these rules to remove the feature; the div
+   in index.html and the BOSS_PORTRAITS block in game.js go with them. */
+.boss-portrait {
+  position: relative;      /* the flash layer is positioned against this */
+  display: block;
+  margin: 0 auto 8px;
+  /* Fills most of the boss panel's inner width rather than sitting in a small centred
+     box -- at 380px it read as a token on a wide monitor. The height is viewport-aware
+     (clamp) rather than fixed because the combat screen is already ~900px tall before
+     the portrait is counted, so a large fixed height guarantees the page scrolls on
+     short screens while a small one wastes the space on tall ones. */
+  width: min(100%, 620px);
+  height: clamp(170px, 28vh, 300px);
+  line-height: 0;
+  animation: boss-portrait-bob 2.4s ease-in-out infinite;
+}
+/* Both layers are the same size, and the flash one is stacked exactly on top. */
+.boss-portrait svg {
+  position: absolute;
+  top: 0; left: 0;
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+
+/* Hit flash: an identical copy of the art stacked on top, forced to solid red and
+   faded in. Fading opacity rather than swapping a filtered version means the original
+   pixels stay exactly where they are -- the silhouette can't shift or blur. */
+.boss-portrait .flash { opacity: 0; }
+.boss-portrait .flash rect { fill: #ff2d2d; }
+.boss-portrait.hit .flash { animation: boss-portrait-flash 0.5s ease-out; }
+.boss-portrait.hit { animation: boss-portrait-shake 0.28s ease-in-out; }
+
+@keyframes boss-portrait-flash {
+  0%   { opacity: 0.85; }
+  40%  { opacity: 0.6; }
+  100% { opacity: 0; }
+}
+/* A sharp double-tap rather than a smooth wobble -- reads as a blow landing. */
+@keyframes boss-portrait-shake {
+  0%, 100% { transform: translate(0, 0); }
+  20%  { transform: translate(-5px, 1px); }
+  45%  { transform: translate(4px, -1px); }
+  70%  { transform: translate(-2px, 0); }
+}
+
+/* No art for this boss yet -- collapse the element so it takes no vertical space
+   and the name/bar sit where they did before the portrait existed. */
+.boss-portrait.empty { display: none; }
+@keyframes boss-portrait-bob {
+  0%, 100% { transform: translateY(0); }
+  50%      { transform: translateY(-3px); }
+}
+/* Respect a reduced-motion preference: keep the bob and the flash off, but keep the
+   red flash -- it carries the information that a hit landed, so it isn't decoration. */
+@media (prefers-reduced-motion: reduce) {
+  .boss-portrait { animation: none; }
+  .boss-portrait.hit { animation: none; }
+  .boss-portrait.hit .flash { animation: boss-portrait-flash 0.5s ease-out; }
+}
+
 .boss-name { font-size: 1.4rem; font-weight: 700; }
 .boss-bar { width: 100%; height: 18px; margin: 6px 0; }
 .intent {
