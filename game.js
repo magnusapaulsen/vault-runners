@@ -17,8 +17,11 @@ const TUNING = {};
 // mechanically different but sharing one color/category, so the desc is what tells them
 // apart, not the type.
 // Attack and block cards both scale with a per-turn combo multiplier (more of that
-// type played this turn = bigger multiplier on each one) -- small/cheap cards lean on
+// type hitting this turn = bigger multiplier on each one) -- small/cheap cards lean on
 // that, while big/expensive cards trade the multiplier for higher flat single-card value.
+// The counters tick per HIT, not per card: a `hits: 4` card advances the combo four
+// steps and takes the multiplier on each of its four hits. Card descs say "per ... hit"
+// to match.
 // A card with `discardCost` makes the player click that many hand cards to discard as a
 // cost before its own drawOnPlay/energyGain resolve -- see beginDiscardSelection().
 
@@ -30,7 +33,7 @@ const CARD_LIBRARY = {
   // ==================== ATTACK ====================
   strike: { key: 'strike',           name: 'Strike',          type: 'attack', cost: 1, baseDamage: 6,                                                               desc: 'Deal 6 damage.' },
   quickStab: { key: 'quickStab',        name: 'Quick Stab',      type: 'attack', cost: 1, baseDamage: 4,                          drawOnPlay: 1,                       price: 25, desc: 'Deal 4 damage. Draw 1 card.' },
-  comboStrike: { key: 'comboStrike',      name: 'Combo Strike',    type: 'attack', cost: 1, baseDamage: 4,           comboBonus: 3,                                      price: 40, desc: 'Deal 4 damage (+3 per attack played this turn).' },
+  comboStrike: { key: 'comboStrike',      name: 'Combo Strike',    type: 'attack', cost: 1, baseDamage: 4,           comboBonus: 3,                                      price: 40, desc: 'Deal 4 damage (+3 per attack hit this turn).' },
   twinBlades: { key: 'twinBlades',       name: 'Twin Blades',     type: 'attack', cost: 2, baseDamage: 8,  hits: 2,                                                     price: 45, desc: 'Deal 8 damage, 2 times.' },
   heavyStrike: { key: 'heavyStrike',      name: 'Heavy Strike',    type: 'attack', cost: 3, baseDamage: 30,                                                              price: 70, desc: 'Deal 30 damage.' },
   thousandCuts: { key: 'thousandCuts',     name: 'Thousand Cuts',   type: 'attack', cost: 2, baseDamage: 2,  hits: 5,                                                     price: 45, desc: 'Deal 2 damage, 5 times.' },
@@ -65,7 +68,7 @@ const CARD_LIBRARY = {
   armor: { key: 'armor',            name: 'Armor',           type: 'block',  cost: 3, block: 24,                                                                                                  price: 40, desc: 'Gain 24 block.' },
   brace: { key: 'brace',            name: 'Brace',           type: 'block',  cost: 0, block: 2,                                                                                                   price: 25, desc: 'Gain 2 block.' },
   bulwark: { key: 'bulwark',          name: 'Bulwark',         type: 'block',  cost: 2, block: 3,  hits: 4,                                                                                         price: 50, desc: 'Gain 3 block, 4 times.' },
-  stonewall: { key: 'stonewall',        name: 'Stonewall',       type: 'block',  cost: 1, block: 4,           blockComboBonus: 4,                                                                     price: 40, desc: 'Gain 4 block (+4 per block played this turn).' },
+  stonewall: { key: 'stonewall',        name: 'Stonewall',       type: 'block',  cost: 1, block: 4,           blockComboBonus: 4,                                                                     price: 40, desc: 'Gain 4 block (+4 per block hit this turn).' },
   shieldBash: { key: 'shieldBash',       name: 'Shield Bash',     type: 'block',  cost: 2, block: 8,                               damageFromBlockPercent: 1.0,                     isAttackToo: true, price: 55, desc: 'Gain 8 block, then deal damage equal to your block.' },
   brambleGuard: { key: 'brambleGuard',     name: 'Bramble Guard',   type: 'block',  cost: 2, block: 10,                                                           retaliateDamage: 5,                    price: 50, desc: 'Gain 10 block. Retaliate for 5 damage when attacked this combat.',
     onPlay(card) {
@@ -89,7 +92,7 @@ const CARD_LIBRARY = {
   // per-tick amounts (Skim at 1-2, Kickback at 3) can round the bonus away.
   treasureGrab: { key: 'treasureGrab',     name: 'Treasure Grab',   type: 'loot',   cost: 1, gold: 4,                                                                                                                      desc: 'Gain 4 gold.' },
   shakedown: { key: 'shakedown',        name: 'Shakedown',       type: 'loot',   cost: 1, gold: 5,                                                                                                                      price: 30, desc: 'Gain 5 gold.' },
-  skim: { key: 'skim',             name: 'Skim',            type: 'loot',   cost: 0,                        goldPerAttack: 1,                                                                                      price: 35, desc: 'Gain 1 gold per attack played this turn.',
+  skim: { key: 'skim',             name: 'Skim',            type: 'loot',   cost: 0,                        goldPerAttack: 1,                                                                                      price: 35, desc: 'Gain 1 gold per attack hit this turn.',
     onPlay(card) {
       const n = game.combat.turnAttackCount;
       if (n <= 0) {
@@ -114,6 +117,27 @@ const CARD_LIBRARY = {
     },
   },
   bloodMoney: { key: 'bloodMoney',       name: 'Blood Money',     type: 'loot',   cost: 0, gold: 8,                                                 selfDamage: 5,                                                       price: 35, desc: 'Lose 5 HP. Gain 8 gold.' },
+
+  // The deck's answer to its own gamble cards. Registers the first real listener for the
+  // `cardMissed` event, which until now fired from trashCard and resolveGoldCardOutcome
+  // with nothing listening (DORMANT.md §1). Glass Cannon rolling 1-3 and Double Up landing
+  // tails both report here, so a whiff stops being dead value and turns into resources --
+  // which also makes it a reason to keep pitching the coin when the smart play is to pass.
+  // Combat-scoped like Kickback and Bramble Guard, so it keeps paying for the rest of the
+  // fight, and each copy registers its own listener, so copies stack.
+  hedge: { key: 'hedge',            name: 'Hedge',           type: 'loot',   cost: 1,                                          goldPerMiss: 4,                  blockPerMiss: 3,                                                                price: 50, desc: 'Whenever one of your cards misses this combat, gain 4 gold and 3 block.',
+    onPlay(card) {
+      addStatus('cardMissed', 'combat', () => {
+        const c = game.combat;
+        const g = gainGold(card.goldPerMiss);
+        // Straight onto c.block, not through resolveBlockGain: a miss is not a block
+        // "hit", so it must not tick turnBlockCount or take the block combo multiplier.
+        // Same distinction Bramble Guard's retaliation makes for the attack counters.
+        c.block += card.blockPerMiss;
+        logMsg(`Hedge: collected ${g} gold and ${card.blockPerMiss} block.`);
+      });
+    },
+  },
 
   // Both gamble cards below are free to acquire (price: 0) and free in energy (cost: 0),
   // and charge gold per play (goldCost) instead. All the tunable numbers live on the card
@@ -198,7 +222,7 @@ const SHOP_POOL_KEYS = [
   'quickStab', 'shieldWall', 'sidestep', 'comboStrike', 'twinBlades', 'heavyStrike', 'gather', 'overdraw', 'spark', 'overcharge',
   'thousandCuts', 'armor', 'burnout',
   'brace', 'bulwark', 'stonewall', 'shieldBash', 'brambleGuard',
-  'shakedown', 'skim', 'crackTheVault', 'protectionRacket', 'bloodMoney',
+  'shakedown', 'skim', 'crackTheVault', 'protectionRacket', 'bloodMoney', 'hedge',
   'rollTheBones', 'doubleOrNothing', 'glassCannon', 'loadedDiceCard',
 ];
 
@@ -1016,6 +1040,7 @@ rollTheBones:[[8,0,20,20,'C'],[8,0,20,1,'W'],[8,0,1,20,'W'],[11,3,3,3,'K'],[22,3
 doubleOrNothing:[[12,3,8,1,'C'],[10,4,12,1,'C'],[9,5,14,10,'C'],[10,15,12,1,'C'],[12,16,8,1,'C'],[12,3,8,1,'W'],[9,5,1,10,'W'],[12,7,2,6,'K'],[18,7,2,6,'K'],[14,9,4,2,'K']],
 skim:[[5,13,5,4,'C'],[13,13,5,4,'C'],[21,13,5,4,'C'],[5,13,5,1,'W'],[13,13,5,1,'W'],[21,13,5,1,'W'],[4,8,1,1,'W'],[6,6,1,1,'W'],[9,5,1,1,'W'],[13,4,1,1,'W'],[17,4,1,1,'W'],[21,5,1,1,'W'],[24,6,1,1,'W'],[26,7,1,1,'W'],[26,8,1,1,'W'],[27,8,1,1,'W']],
 bloodMoney:[[12,2,8,1,'C'],[10,3,12,1,'C'],[9,4,14,7,'C'],[10,11,12,1,'C'],[12,12,8,1,'C'],[12,2,8,1,'W'],[9,4,1,7,'W'],[15,14,2,1,'R'],[14,15,4,1,'R'],[13,16,6,2,'R'],[14,18,4,1,'R']],
+hedge:[[14,4,4,1,'C'],[13,5,6,1,'C'],[12,6,8,2,'C'],[12,8,8,4,'C'],[12,12,8,2,'C'],[13,14,6,1,'C'],[14,15,4,1,'C'],[15,6,2,10,'K'],[13,6,2,1,'W'],[12,7,1,2,'W'],[2,10,5,1,'C'],[3,9,4,1,'C'],[3,11,4,1,'C'],[4,8,3,1,'C'],[4,12,3,1,'C'],[7,9,3,3,'C'],[22,9,3,3,'C'],[25,8,3,1,'C'],[25,12,3,1,'C'],[25,9,4,1,'C'],[25,11,4,1,'C'],[25,10,5,1,'C']],
 shakedown:[[14,2,4,1,'W'],[13,3,6,1,'C'],[11,4,10,2,'C'],[10,6,12,10,'C'],[11,16,10,1,'C'],[13,17,6,1,'C'],[10,8,12,2,'K'],[15,11,2,4,'K'],[13,12,6,1,'K']],
 protectionRacket:[[13,8,6,1,'C'],[11,9,10,6,'C'],[13,15,6,1,'C'],[13,8,6,1,'W'],[11,9,1,6,'W'],[8,6,1,1,'W'],[9,4,1,1,'W'],[11,3,2,1,'W'],[14,2,4,1,'W'],[19,3,2,1,'W'],[22,4,1,1,'W'],[23,6,1,1,'W'],[22,5,3,1,'W'],[24,6,1,2,'W'],[15,10,2,4,'K']],
 crackTheVault:[[7,1,18,18,'C'],[9,3,14,14,'K'],[14,7,6,6,'C'],[7,1,18,1,'W'],[16,5,2,2,'W'],[16,13,2,2,'W'],[11,9,3,2,'W'],[20,9,3,2,'W']],
@@ -1296,6 +1321,7 @@ const TUNING_CARD_NUMERIC_FIELDS = [
   'cost', 'baseDamage', 'hits', 'block', 'blockComboBonus', 'comboBonus', 'gold',
   'goldCost', 'goldPerAttack', 'goldPerTurn', 'selfDamage', 'energyGain', 'drawOnPlay',
   'discardCost', 'damagePerPip', 'winDamage', 'retaliateDamage', 'damageFromBlockPercent',
+  'goldPerMiss', 'blockPerMiss',
   'price',
 ];
 

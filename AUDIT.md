@@ -102,24 +102,30 @@ Independent of the keyboard route, the shape is wrong: `checkCombatEnd` is calle
 sites (`playCard` 609, three card callbacks, `endTurn` 682 and 691) and none of them can
 tell whether the fight has already been resolved.
 
-### 4. Combo counters tick per *hit*, but three card descriptions promise per *card*
+### 4. RESOLVED — combo counters tick per *hit*, card descriptions now say so
 
 **Location:** `resolveAttackHit` 390, `resolveBlockGain` 406, the `hits` loops in `playCard`
 553 and 575.
 
 Multi-hit cards increment the counters once per hit, so one card can advance the combo by 4
-or 5 steps. The descriptions say otherwise:
+or 5 steps. The descriptions used to say "played this turn", implying per-card.
 
-- **Stonewall** — *"+4 per block **card** already played this turn."* Play Bulwark
-  (`hits: 4`) then Stonewall: `turnBlockCount` is 4, so Stonewall's base is `4 + 4×4 = 20`
-  at ×1.8 → **36 block**, not the 8 its text implies. Off by a factor of 4.5.
-- **Combo Strike** — *"+3 per attack already played this turn."* Thousand Cuts (`hits: 5`)
-  counts as five prior attacks.
-- **Skim** — *"Gain 1 gold per attack already played this turn."* One Thousand Cuts pays 5
-  gold.
+**Fixed by rewording the three descs, not by changing the engine** — per-hit counting is the
+intended mechanic (`hits` is a deliberate combo lever, and `blockComboBonus`/`comboBonus` are
+tuned around it). Each now reads "per ... hit":
 
-Either the descriptions or the counters are wrong; they cannot both be right. Stonewall is
-the clearest case because it says "card" explicitly.
+- **Stonewall** — *"Gain 4 block (+4 per block hit this turn)."* Play Bulwark (`hits: 4`)
+  then Stonewall: `turnBlockCount` is 4, so Stonewall's base is `4 + 4×4 = 20` at ×1.8 →
+  **36 block**. The text now matches.
+- **Combo Strike** — *"+3 per attack hit this turn."* Thousand Cuts (`hits: 5`) counts as
+  five prior attack hits.
+- **Skim** — *"Gain 1 gold per attack hit this turn."* One Thousand Cuts pays 5 gold.
+
+The `CARD_LIBRARY` header comment now states the per-hit rule and why the descs say "hit".
+
+**Still worth a balance pass:** Stonewall at 36 block from a 1-cost card is very strong for
+what its text now claims. The wording is honest but the numbers are not obviously tuned for
+it. `blockComboBonus: 4` is the dial to lower.
 
 ### 5. Boss list and rules text disagree; boss 4 is effectively unlosable
 

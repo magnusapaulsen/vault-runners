@@ -10,8 +10,9 @@ The Gold Rush cards brought part of this catalogue back. Recorded here so the fi
 
 | Item | Revived by | Notes |
 |---|---|---|
-| `addStatus(on, scope, effect)` | **Protection Racket** | `addStatus('turnStart', 'combat', fn)` in its `onPlay`. One caller again, after having zero. |
-| `fireEvent(eventName, payload)` | **Protection Racket** | Its `turnStart` call site now matches a real listener. The `cardMissed` and `playerAttacked` call sites still match nothing — see §1 and §2. |
+| `addStatus(on, scope, effect)` | **Protection Racket** | `addStatus('turnStart', 'combat', fn)` in its `onPlay`. Now three callers, all `'combat'` scope. |
+| `cardMissed` event | **Hedge** | `addStatus('cardMissed', 'combat', fn)`. Fired by `trashCard` (Glass Cannon 1–3) and `resolveGoldCardOutcome` (Double Up tails). See §1. |
+| `fireEvent(eventName, payload)` | **Protection Racket**, **Bramble Guard**, **Hedge** | All three call sites now match a real listener: `turnStart` (Protection Racket), `playerAttacked` (Bramble Guard), `cardMissed` (Hedge). Every event name in the subsystem is live. |
 | `combat.statuses` | **Protection Racket** | No longer permanently `[]`. Holds one entry per copy played. |
 | `turnStart` event | **Protection Racket** | *New* event, added with these cards. Fired at the end of `endTurn`'s new-turn block (~line 625). |
 | `card.selfDamage` | **Blood Money** | The `playCard` branch fires again. `canPlayCard` now also gates it: `selfDamage >= game.hp` makes a card unplayable, so self-damage can never be lethal. |
@@ -33,9 +34,9 @@ The pub/sub subsystem is therefore now **partly** live: registration and dispatc
 
 | Item | Kind | Status | Last user |
 |---|---|---|---|
-| `cardMissed` event | event | **fires, zero listeners** | Sore Loser |
+| `cardMissed` event | event | **now live — see §0** | **Hedge** (revived) |
 | `'turn'` scope + `clearTurnStatuses()` | scope + fn | runs, always a no-op | Spiked Armor |
-| `resolveGoldCardOutcome()` | function | called, body inert | Sore Loser |
+| `resolveGoldCardOutcome()` | function | **now live — see §0** | **Hedge** (revived) |
 | `combat.turnDamageDealt` | state | written, **never read** | Hit Job |
 | `currentAttackMult()` | function | never called (**and off by one**) | Adrenaline |
 | `card.discardRandom` + `discardRandomCards()` | card prop + fn | branch never taken | Reckless Swing |
@@ -63,7 +64,9 @@ So a listener would already receive an event on **a Glass Cannon miss** and **a 
 
 **Last user:** Sore Loser (deleted). `soreLoserBonus` was removed from combat state and from `resolveAttackHit`.
 
-**To make it live again:**
+**Revived by Hedge**, which registers a combat-scoped listener paying `goldPerMiss` gold and `blockPerMiss` block per miss. It takes no payload argument — like Sore Loser's and Protection Racket's, it does not care *which* card missed — so the `{ card }` payload still has no exercised consumer.
+
+**If you build another one,** copy Hedge's registration shape (or Protection Racket's, the other working reference):
 
 ```js
 onPlay(card) {
@@ -75,10 +78,10 @@ onPlay(card) {
 
 Notes:
 
-- Copy Protection Racket's registration shape — it is the working reference implementation now.
-- The payload is `{ card }`, the card that missed. The payload plumbing still has **no** exercised consumer: Protection Racket's handler takes no arguments, as Sore Loser's did. Untested.
-- If the payoff needs its own combat-state counter (as Sore Loser used `soreLoserBonus`), re-add that field to the object literal in `startCombat` — it is gone.
+- The payload is `{ card }`, the card that missed. Still **untested** — no live listener destructures it.
+- If the payoff needs its own combat-state counter (as Sore Loser used `soreLoserBonus`), re-add that field to the object literal in `startCombat` — it is gone. Hedge needs none: it pays a flat amount per event rather than banking a running total.
 - To widen what counts as a miss, add more `fireEvent('cardMissed', …)` call sites; the listener side needs no changes.
+- Hedge adds block straight onto `c.block` rather than through `resolveBlockGain`, so a miss does not tick `turnBlockCount` or take the block combo multiplier. Keep that property in any replacement — a free listener-driven payoff should not inflate the player's block combo.
 
 ## `resolveGoldCardOutcome(card, succeeded)` — ~line 368
 
@@ -92,9 +95,9 @@ function resolveGoldCardOutcome(card, succeeded) {
 }
 ```
 
-**Current status:** still called by Double or Nothing, but the single statement is inert for want of `cardMissed` listeners. A no-op function with a live call site.
+**Current status:** called by Double or Nothing, and **live again** — its `cardMissed` fire now reaches Hedge's listener, so a Double Up tail pays out instead of evaporating.
 
-**To make it live again:** this is the natural home for anything on *any* failed gamble — refunds, consolation gold, miss counters. Route new gold cards through it rather than re-implementing per card. Note that Roll the Bones and Glass Cannon do **not** call it (Roll the Bones cannot fail; Glass Cannon reports its miss via `trashCard`).
+**Still the natural home** for anything on *any* failed gamble — refunds, consolation gold, miss counters. Route new gold cards through it rather than re-implementing per card. Note that Roll the Bones and Glass Cannon do **not** call it (Roll the Bones cannot fail; Glass Cannon reports its miss via `trashCard`, which fires the same event, so both still reach Hedge).
 
 ---
 
